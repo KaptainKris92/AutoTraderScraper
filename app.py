@@ -19,31 +19,41 @@ from selenium.webdriver.support.ui import WebDriverWait
 # With filters: Under £5k, within 50 miles of Caerphilly, Automatic transmission, <125k miles
 AUTOTRADER_URL = "https://www.autotrader.co.uk/car-search?maximum-mileage=125000&postcode=CF83%208TF&price-to=5000&radius=50&sort=relevance&transmission=Automatic"  
 SAVE_DIR = "car_data"
+MAX_SCROLLS = 50 
 
 # Doesn't work yet. May be unnecessary
-def accept_cookies(driver):
+def accept_cookies(driver, timeout=15):
     try:
-        time.sleep(3)  # Give modal time to appear
-        # Try all cookie buttons
-        for label in ['Accept All', 'Reject All']:
-            try:
-                button = driver.find_element(By.XPATH, f"//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{label.lower()}')]")
-                driver.execute_script("arguments[0].click();", button)
-                print(f"✅ Clicked '{label}' cookie button.")
-                time.sleep(1)
-                return
-            except:
-                continue
-        print("⚠️ Cookie button not found by label.")
+        # Wait for iframe containing the cookie modal
+        WebDriverWait(driver, timeout).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "iframe[src*='consent']"))
+        )
+        iframe = driver.find_element(By.CSS_SELECTOR, "iframe[src*='consent']")
+        driver.switch_to.frame(iframe)
+
+        # Wait for the Reject All button inside the iframe
+        WebDriverWait(driver, timeout).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Reject All')]"))
+        )
+        reject_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Reject All')]")
+        driver.execute_script("arguments[0].click();", reject_button)
+        print("✅ Clicked 'Reject All' cookie button inside iframe.")
+
+        # Important: switch back to main content
+        driver.switch_to.default_content()
+
     except Exception as e:
-        print("⚠️ Cookie popup handling failed:", e)
+        print("⚠️ Failed to handle cookie popup:", e)
+
+
+
 
 
 def scrape_autotrader():
     os.makedirs(SAVE_DIR, exist_ok=True)
 
     options = Options()
-    # options.add_argument("--headless")
+    options.add_argument("--headless")
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
@@ -51,8 +61,6 @@ def scrape_autotrader():
 
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     driver.get(AUTOTRADER_URL)
-    # driver.save_screenshot("initial_load.png")
-
 
     # Wait for and accept cookies (if present)
     accept_cookies(driver)
@@ -64,21 +72,18 @@ def scrape_autotrader():
         WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-testid='advertCard']"))
         )
-        # driver.save_screenshot("found_listings.png")
         print("Listings loaded.")
     except:
         print("Still couldn't find any listings.")
         print(driver.page_source[:2000])
-        # driver.save_screenshot("not_found_listings.png")
         driver.quit()
         return
 
     # Scroll to bottom until no new content appears (max 15 scrolls)
-    scroll_pause_time = 2
-    max_scrolls = 50
+    scroll_pause_time = 2    
     last_height = driver.execute_script("return document.body.scrollHeight")
 
-    for i in range(max_scrolls):
+    for i in range(MAX_SCROLLS):
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         time.sleep(scroll_pause_time)
         new_height = driver.execute_script("return document.body.scrollHeight")
@@ -94,7 +99,6 @@ def scrape_autotrader():
     car_data = []
     listings = driver.find_elements(By.CSS_SELECTOR, "div[data-testid='advertCard']")
     print(f"🛻 Found {len(listings)} car listings after scrolling.")
-    # driver.save_screenshot("found_listings_2.png")
     for listing in listings:
         try:
             title = listing.find_element(By.CSS_SELECTOR, "[data-testid='search-listing-title']").text
@@ -156,7 +160,6 @@ def scrape_autotrader():
         if not title:
             print("⚠️ Skipped listing with missing title or fields.")
             
-    # driver.save_screenshot("closing_driver.png")
     driver.quit()
 
     df = pd.DataFrame(car_data)
