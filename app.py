@@ -8,12 +8,11 @@ import re
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
 
 # Unique Advert IDs
 import hashlib
@@ -26,7 +25,7 @@ SAVE_DIR = "car_data"
 MAX_SCROLLS = 2 
 
 # Doesn't work yet. May be unnecessary
-def accept_cookies(driver, timeout=15):
+def reject_cookies(driver, timeout=15):
     try:
         # Wait for iframe containing the cookie modal
         WebDriverWait(driver, timeout).until(
@@ -63,7 +62,7 @@ def scrape_autotrader():
     driver.get(AUTOTRADER_URL)
 
     # Wait for and accept cookies (if present)
-    accept_cookies(driver)
+    reject_cookies(driver)
     # Give the page time to render listings
     time.sleep(5)  # Optional: add delay before checking for listings
 
@@ -188,22 +187,71 @@ def download_pictures(ad_id, ad_url):
     folder.mkdir(parents=True, exist_ok=True)
 
     options = Options()
-    options.add_argument("--headless")
+    # options.add_argument("--headless=new")  # High chance of being blocked by CloudFlare
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
 
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     driver.get(ad_url)
+    reject_cookies(driver)
 
-    time.sleep(3)
+    try:        
+        # Scroll to bottom to trigger lazy loading
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(2)
+        driver.save_screenshot(f"{ad_id}_screenshot.png")
 
+        # ✅ Click a thumbnail instead of the 'View gallery' button
+        try:
+            thumb = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-testid^='open-carousel']"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", thumb)
+            time.sleep(0.5)
+            thumb.click()
+            print(f"✅ Clicked thumbnail to open gallery for {ad_id}")
+        except Exception as e:
+            print(f"⚠️ Failed to click thumbnail for {ad_id}: {e}")
+            driver.quit()
+            return
+
+        # Wait for modal to load
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='dialog'] img"))
+        )
+        time.sleep(2)  # Ensure images fully render
+
+        driver.save_screenshot(f"{ad_id}_post_gallery_click.png")
+
+    except Exception as e:
+        print(f"⚠️ Could not open gallery for {ad_id}: {e}")
+        driver.quit()
+        return
+
+    # ✅ Extract images
     try:
-        thumbnails = driver.find_elements(By.CSS_SELECTOR, "img.ImageGalleryImage__image")
-        img_urls = [thumb.get_attribute("src") for thumb in thumbnails if thumb.get_attribute("src")]
-    except:
-        print(f"⚠️ Could not find image gallery for {ad_id}")
+        image_elements = driver.find_elements(By.CSS_SELECTOR, "div[role='dialog'] picture source")
+
+        img_urls = list({
+            elem.get_attribute("srcset") or elem.get_attribute("src")
+            for elem in image_elements
+            if (elem.get_attribute("srcset") or elem.get_attribute("src")) and "media" in (elem.get_attribute("srcset") or elem.get_attribute("src"))
+        })
+
+        if not img_urls:
+            print("⚠️ No modal image URLs found, falling back to thumbnails.")
+            thumb_elements = driver.find_elements(By.CSS_SELECTOR, "img.ImageGalleryImage__image")
+            img_urls = list({
+                img.get_attribute("src")
+                for img in thumb_elements
+                if img.get_attribute("src") and "media" in img.get_attribute("src")
+            })
+
+    except Exception as e:
+        print(f"⚠️ Could not extract image URLs for {ad_id}: {e}")
         img_urls = []
 
+    # ✅ Download images
     for i, img_url in enumerate(img_urls):
         try:
             img_data = requests.get(img_url, timeout=10).content
@@ -216,6 +264,6 @@ def download_pictures(ad_id, ad_url):
     print(f"✅ Downloaded {len(img_urls)} images for {ad_id}")
 
 
-
 if __name__ == "__main__":
-    scrape_autotrader()
+    # scrape_autotrader()
+    download_pictures('e46b69ca14', 'https://www.autotrader.co.uk/car-details/202507054201480')
