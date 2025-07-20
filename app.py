@@ -15,11 +15,15 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 
+# Unique Advert IDs
+import hashlib
+import requests
+from pathlib import Path
 
 # With filters: Under £5k, within 50 miles of Caerphilly, Automatic transmission, <125k miles
 AUTOTRADER_URL = "https://www.autotrader.co.uk/car-search?maximum-mileage=125000&postcode=CF83%208TF&price-to=5000&radius=50&sort=relevance&transmission=Automatic"  
 SAVE_DIR = "car_data"
-MAX_SCROLLS = 50 
+MAX_SCROLLS = 2 
 
 # Doesn't work yet. May be unnecessary
 def accept_cookies(driver, timeout=15):
@@ -44,10 +48,6 @@ def accept_cookies(driver, timeout=15):
 
     except Exception as e:
         print("⚠️ Failed to handle cookie popup:", e)
-
-
-
-
 
 def scrape_autotrader():
     os.makedirs(SAVE_DIR, exist_ok=True)
@@ -101,16 +101,26 @@ def scrape_autotrader():
     print(f"🛻 Found {len(listings)} car listings after scrolling.")
     for listing in listings:
         try:
+            title_elem = listing.find_element(By.CSS_SELECTOR, "a[data-testid='search-listing-title']")
+            href = title_elem.get_attribute("href")
+            base_href = href.split("?")[0]  # Remove everything after '?'
+            ad_url = "https://www.autotrader.co.uk" + base_href if base_href.startswith("/") else base_href
+        except:
+            ad_url = ""        
+
+        # Generate stable ad_id
+        ad_id = hashlib.md5(ad_url.encode('utf-8')).hexdigest()[:10] if ad_url else ""
+
+        try:
             title = listing.find_element(By.CSS_SELECTOR, "[data-testid='search-listing-title']").text
         except:
             title = ""
             
-        # Extract price
-        price_match = re.search(r"£[\d;]+", title)
-        if price_match:
-            price = price_match.group()
-            title = title.replace(f", {price}", "").strip()
-        else:
+        
+        try:
+            price_elem = listing.find_element(By.CSS_SELECTOR, "div[class*='at__sc-u4ap7c-12'] span")
+            price = price_elem.text.strip()
+        except:
             price = ""
 
         try:
@@ -141,21 +151,26 @@ def scrape_autotrader():
         except:
             location = ""
             
-        loc_match = re.match(r"(.+?)\s*\(([\d,]+ miles)\)", location)
+        loc_match = re.match(r"(.+?)\s*\((\d+)\s*miles\)", location)
         if loc_match:
             city, dist = loc_match.groups()
-            location_reformatted = f'{dist} ({city})'
+            try:
+                dist = int(dist)
+            except ValueError:
+                dist = None
         else:
-            location_reformatted = location
+            city, dist = None, None
 
         car_data.append({
+            "Ad ID": ad_id,
             "Title": title,
             "Subtitle": subtitle,
             "Price": price,
-            "Mileage": mileage,
-            "Mileage (numeric)": mileage_numeric,
+            "Mileage": mileage_numeric,
             "Registered Year": reg_year,
-            "Location": location_reformatted
+            "Distance (miles)": dist,
+            "Location": city,
+            "Ad URL": ad_url
         })
         if not title:
             print("⚠️ Skipped listing with missing title or fields.")
@@ -166,6 +181,40 @@ def scrape_autotrader():
     file_path = os.path.join(SAVE_DIR, f"cars_{datetime.now().date()}.xlsx")
     df.to_excel(file_path, index=False)
     print(f"Saved {len(df)} listings to {file_path}")
+
+
+def download_pictures(ad_id, ad_url):
+    folder = Path("images") / ad_id
+    folder.mkdir(parents=True, exist_ok=True)
+
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--window-size=1920,1080")
+
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    driver.get(ad_url)
+
+    time.sleep(3)
+
+    try:
+        thumbnails = driver.find_elements(By.CSS_SELECTOR, "img.ImageGalleryImage__image")
+        img_urls = [thumb.get_attribute("src") for thumb in thumbnails if thumb.get_attribute("src")]
+    except:
+        print(f"⚠️ Could not find image gallery for {ad_id}")
+        img_urls = []
+
+    for i, img_url in enumerate(img_urls):
+        try:
+            img_data = requests.get(img_url, timeout=10).content
+            with open(folder / f"{i+1:02}.jpg", "wb") as f:
+                f.write(img_data)
+        except Exception as e:
+            print(f"❌ Failed to download image {i+1} for {ad_id}: {e}")
+
+    driver.quit()
+    print(f"✅ Downloaded {len(img_urls)} images for {ad_id}")
+
 
 
 if __name__ == "__main__":
