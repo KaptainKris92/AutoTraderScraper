@@ -22,6 +22,10 @@ from pathlib import Path
 # OCR of license plate
 import easyocr
 
+from dotenv import load_dotenv
+
+load_dotenv('./.env')
+
 # With filters: Under £5k, within 50 miles of Caerphilly, Automatic transmission, <125k miles
 AUTOTRADER_URL = "https://www.autotrader.co.uk/car-search?maximum-mileage=125000&postcode=CF83%208TF&price-to=5000&radius=50&sort=relevance&transmission=Automatic"  
 SAVE_DIR = "car_data"
@@ -359,4 +363,5 @@ if __name__ == "__main__":
 
     scraped_df['Possible Plates'] = plate_sets
     scraped_df.to_excel(os.path.join(SAVE_DIR, f"cars_with_plates_{datetime.now().date()}.xlsx"), index=False)
+    
     
