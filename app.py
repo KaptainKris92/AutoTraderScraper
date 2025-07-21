@@ -25,7 +25,7 @@ import easyocr
 # With filters: Under £5k, within 50 miles of Caerphilly, Automatic transmission, <125k miles
 AUTOTRADER_URL = "https://www.autotrader.co.uk/car-search?maximum-mileage=125000&postcode=CF83%208TF&price-to=5000&radius=50&sort=relevance&transmission=Automatic"  
 SAVE_DIR = "car_data"
-MAX_SCROLLS = 2 
+MAX_SCROLLS = 100 
 
 def reject_cookies(driver, timeout=15):
     try:
@@ -222,7 +222,7 @@ def download_pictures(ad_id, ad_url):
 
     try:        
         time.sleep(2)
-        driver.save_screenshot(f"{ad_id}_screenshot.png")
+        driver.save_screenshot(f"screenshots/{ad_id}_screenshot.png")
 
         # ✅ Click a thumbnail instead of the 'View gallery' button
         try:
@@ -244,7 +244,7 @@ def download_pictures(ad_id, ad_url):
         )
         time.sleep(2)  # Ensure images fully render
 
-        driver.save_screenshot(f"{ad_id}_post_gallery_click.png")
+        driver.save_screenshot(f"screenshots/{ad_id}_post_gallery_click.png")
 
     except Exception as e:
         print(f"⚠️ Could not open gallery for {ad_id}: {e}")
@@ -359,7 +359,4 @@ if __name__ == "__main__":
 
     scraped_df['Possible Plates'] = plate_sets
     scraped_df.to_excel(os.path.join(SAVE_DIR, f"cars_with_plates_{datetime.now().date()}.xlsx"), index=False)
-    
-    download_pictures(ad_id, ad_url)
-    ocr_reg_plate(ad_id)    
     
