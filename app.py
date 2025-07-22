@@ -200,11 +200,21 @@ def scrape_autotrader(save_to_excel = True):
                 dist = None
         else:
             city, dist = None, None
+            
+        # Remove subtitle and price from title if present
+        cleaned_title = title
+        if subtitle and subtitle in cleaned_title:
+            cleaned_title = cleaned_title.replace(subtitle, "")
+        if price and price in cleaned_title:
+            cleaned_title = cleaned_title.replace(price, "")
+        cleaned_title = cleaned_title.strip()
+        # Remove trailing newline and comma if present
+        cleaned_title = re.sub(r'[\n\r]+,?$', '', cleaned_title).strip()
 
         car_data.append({
             'Ad URL': ad_url,
             'Ad ID': ad_id,
-            'Title': title,
+            'Title': cleaned_title,
             'Subtitle': subtitle,
             'Price': price,
             'Mileage': mileage_numeric,
@@ -304,6 +314,7 @@ def download_pictures(ad_id, ad_url):
     driver.quit()
     print(f"✅ Downloaded {len(img_urls)} images for {ad_id}")
 
+# Move to new 'image_ocr.py'?
 def clean_and_match_plates(ocr_texts):
     plate_candidates = set()
     for raw in ocr_texts:
@@ -330,7 +341,7 @@ def clean_and_match_plates(ocr_texts):
 
     return plate_candidates
 
-
+# Move to new 'image_ocr.py'?
 def ocr_reg_plate(ad_id):
     folder = f'images/{ad_id}'
     reader = easyocr.Reader(['en'], gpu = True)
@@ -354,8 +365,8 @@ def ocr_reg_plate(ad_id):
 
 
 if __name__ == "__main__":
-    scraped_df = scrape_autotrader()
     create_table_if_not_exists(TABLE_NAME)
+    scraped_df = scrape_autotrader()    
     save_to_sql(scraped_df, TABLE_NAME)
     print(f'{len(scraped_df)} new listings saved to database')
     

@@ -47,7 +47,15 @@ def check_ad_id_exists(ad_id, table_name = 'ads'):
         cursor = conn.cursor()
         cursor.execute(f"SELECT 1 FROM {table_name} WHERE \"Ad ID\" = ?", (ad_id,))
         return cursor.fetchone() is not None
-        
+    
+def update_flag(ad_id, column, value, table_name='ads'):
+    if column not in ("Favourited", "Excluded"):
+        raise ValueError("Invalid column")
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(f'UPDATE {table_name} SET "{column}" = ? WHERE "Ad ID" = ?', (value, ad_id))
+        conn.commit()
+
 def insert_test_ad(table_name='ads'):
     ad = {
         "Ad URL": "https://www.autotrader.co.uk/car-details/202507054201480",
@@ -65,9 +73,15 @@ def insert_test_ad(table_name='ads'):
         "Scraped at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
     save_to_sql([ad], table_name)
+    
+def load_ads(table = 'ads'):
+    with sqlite3.connect(DB_PATH) as conn:
+        df = pd.read_sql_query(f'SELECT * FROM {table}', conn)
+        df = df.fillna("").replace({float("nan"): ""})
+        return df.to_dict(orient='records')
         
 if __name__ == "__main__":
-    create_table_if_not_exists('ads')
-    insert_test_ad()
+    # create_table_if_not_exists('ads')
+    # insert_test_ad()
     # print(check_ad_id_exists('e46b69ca14'))
     pass
