@@ -22,14 +22,20 @@ from pathlib import Path
 # OCR of license plate
 import easyocr
 
-from dotenv import load_dotenv
+# Database functions
+from utils.database_utils import create_table_if_not_exists, save_to_sql
+from utils.general_utils import extract_post_date
 
+from dotenv import load_dotenv
 load_dotenv('./.env')
+
 
 # With filters: Under £5k, within 50 miles of Caerphilly, Automatic transmission, <125k miles
 AUTOTRADER_URL = "https://www.autotrader.co.uk/car-search?maximum-mileage=125000&postcode=CF83%208TF&price-to=5000&radius=50&sort=relevance&transmission=Automatic"  
-SAVE_DIR = "car_data"
+
+DATA_DIR = "data"
 MAX_SCROLLS = 100 
+TABLE_NAME = 'ads'
 
 def reject_cookies(driver, timeout=15):
     try:
@@ -340,6 +346,8 @@ def ocr_reg_plate(ad_id):
 
 
 if __name__ == "__main__":
+    
+    create_table_if_not_exists(TABLE_NAME)
     scraped_df = scrape_autotrader()
     
     plate_sets = []
