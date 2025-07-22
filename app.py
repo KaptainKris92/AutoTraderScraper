@@ -23,7 +23,7 @@ from pathlib import Path
 import easyocr
 
 # Database functions
-from utils.database_utils import create_table_if_not_exists, save_to_sql
+from utils.database_utils import create_table_if_not_exists, check_ad_id_exists, save_to_sql
 from utils.general_utils import extract_post_date
 
 from dotenv import load_dotenv
@@ -34,7 +34,7 @@ load_dotenv('./.env')
 AUTOTRADER_URL = "https://www.autotrader.co.uk/car-search?maximum-mileage=125000&postcode=CF83%208TF&price-to=5000&radius=50&sort=relevance&transmission=Automatic"  
 
 DATA_DIR = "data"
-MAX_SCROLLS = 100 
+MAX_SCROLLS = 1 
 TABLE_NAME = 'ads'
 
 def reject_cookies(driver, timeout=15):
@@ -63,7 +63,7 @@ def reject_cookies(driver, timeout=15):
 def create_stealth_driver(headless=True):
     options = Options()
     if headless:
-        options.add_argument("--headless=new")  # Use new mode
+        options.add_argument("--headless=new")  
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--window-size=1920,1080")
     options.add_argument("--disable-gpu")
@@ -87,23 +87,14 @@ def create_stealth_driver(headless=True):
     
     return driver
 
-def scrape_autotrader():
-    os.makedirs(SAVE_DIR, exist_ok=True)
-
-    options = Options()
-    options.add_argument("--headless")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--window-size=1920,1080")
-    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
-
-
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+def scrape_autotrader(save_to_excel = True):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    driver = create_stealth_driver(headless = True)    
     driver.get(AUTOTRADER_URL)
 
-    # Wait for and accept cookies (if present)
     reject_cookies(driver)
-    # Give the page time to render listings
-    time.sleep(5)  # Optional: add delay before checking for listings
+    
+    time.sleep(5) # Give the page time to render listings
 
     # Wait until at least one car listing is loaded
     try:
@@ -117,7 +108,7 @@ def scrape_autotrader():
         driver.quit()
         return
 
-    # Scroll to bottom until no new content appears (max 15 scrolls)
+    # Scroll to bottom until no new content appears (stop at MAX_SCROLLS)
     scroll_pause_time = 2    
     last_height = driver.execute_script("return document.body.scrollHeight")
 
@@ -137,7 +128,9 @@ def scrape_autotrader():
     car_data = []
     listings = driver.find_elements(By.CSS_SELECTOR, "div[data-testid='advertCard']")
     print(f"🛻 Found {len(listings)} car listings after scrolling.")
-    for listing in listings:
+    
+    # Extract listings info
+    for listing in listings: 
         try:
             title_elem = listing.find_element(By.CSS_SELECTOR, "a[data-testid='search-listing-title']")
             href = title_elem.get_attribute("href")
@@ -145,16 +138,25 @@ def scrape_autotrader():
             ad_url = "https://www.autotrader.co.uk" + base_href if base_href.startswith("/") else base_href
         except:
             ad_url = ""        
-
+            
+            
         # Generate stable ad_id
         ad_id = hashlib.md5(ad_url.encode('utf-8')).hexdigest()[:10] if ad_url else ""
-
+        
+        if check_ad_id_exists(ad_id, TABLE_NAME):
+            print(f'Ad {ad_id} already scraped.') # REMOVE AFTER DEBUGGING
+            continue        
+            
+        try:
+            post_date = extract_post_date(ad_url)
+        except:
+            post_date = ""
+        
         try:
             title = listing.find_element(By.CSS_SELECTOR, "[data-testid='search-listing-title']").text
         except:
             title = ""
-            
-        
+                    
         try:
             price_elem = listing.find_element(By.CSS_SELECTOR, "div[class*='at__sc-u4ap7c-12'] span")
             price = price_elem.text.strip()
@@ -200,25 +202,33 @@ def scrape_autotrader():
             city, dist = None, None
 
         car_data.append({
-            "Ad ID": ad_id,
-            "Title": title,
-            "Subtitle": subtitle,
-            "Price": price,
-            "Mileage": mileage_numeric,
-            "Registered Year": reg_year,
-            "Distance (miles)": dist,
-            "Location": city,
-            "Ad URL": ad_url
+            'Ad URL': ad_url,
+            'Ad ID': ad_id,
+            'Title': title,
+            'Subtitle': subtitle,
+            'Price': price,
+            'Mileage': mileage_numeric,
+            'Registered Year': reg_year,
+            'Distance (miles)': dist,
+            'Location': city,
+            'Ad post date': post_date,
+            'Favourited': 0,
+            'Excluded': 0,
+            'Scraped at': datetime.now().strftime("%Y-%m-%d %H:%M:%S")                                
         })
+        
         if not title:
             print("⚠️ Skipped listing with missing title or fields.")
             
     driver.quit()
 
     df = pd.DataFrame(car_data)
-    file_path = os.path.join(SAVE_DIR, f"cars_{datetime.now().date()}.xlsx")
-    df.to_excel(file_path, index=False)
-    print(f"Saved {len(df)} listings to {file_path}")
+    df = df.drop_duplicates(subset = 'Ad ID')
+    
+    if save_to_excel:
+        file_path = os.path.join(DATA_DIR, f"cars_{datetime.now().date()}.xlsx")
+        df.to_excel(file_path, index=False)
+        print(f"Saved {len(df)} listings to {file_path}")
     return df
 
 
@@ -232,7 +242,6 @@ def download_pictures(ad_id, ad_url):
 
     try:        
         time.sleep(2)
-        driver.save_screenshot(f"screenshots/{ad_id}_screenshot.png")
 
         # ✅ Click a thumbnail instead of the 'View gallery' button
         try:
@@ -252,9 +261,8 @@ def download_pictures(ad_id, ad_url):
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='dialog'] img"))
         )
+        
         time.sleep(2)  # Ensure images fully render
-
-        driver.save_screenshot(f"screenshots/{ad_id}_post_gallery_click.png")
 
     except Exception as e:
         print(f"⚠️ Could not open gallery for {ad_id}: {e}")
@@ -346,30 +354,31 @@ def ocr_reg_plate(ad_id):
 
 
 if __name__ == "__main__":
-    
-    create_table_if_not_exists(TABLE_NAME)
     scraped_df = scrape_autotrader()
+    create_table_if_not_exists(TABLE_NAME)
+    save_to_sql(scraped_df, TABLE_NAME)
+    print(f'{len(scraped_df)} new listings saved to database')
     
-    plate_sets = []
-    for _, row in scraped_df.iterrows():
-        ad_id = row['Ad ID']
-        ad_url = row['Ad URL']
-        download_pictures(ad_id, ad_url)
-        folder = f'images/{ad_id}'
-        reader = easyocr.Reader(['en'], gpu=True)
-        all_texts = []
-        for filename in os.listdir(folder):
-            if filename.lower().endswith((".jpg", ".jpeg", ".png")):
-                img_path = os.path.join(folder, filename)
-                try:
-                    results = reader.readtext(img_path, detail=0, paragraph=False)
-                    all_texts.extend(results)
-                except Exception as e:
-                    print(f"Failed to process {filename}: {e}")
-        plate_set = clean_and_match_plates(all_texts)
-        plate_sets.append(', '.join(plate_set) if plate_set else "")
+    # plate_sets = []
+    # for _, row in scraped_df.iterrows():
+    #     ad_id = row['Ad ID']
+    #     ad_url = row['Ad URL']
+    #     download_pictures(ad_id, ad_url)
+    #     folder = f'images/{ad_id}'
+    #     reader = easyocr.Reader(['en'], gpu=True)
+    #     all_texts = []
+    #     for filename in os.listdir(folder):
+    #         if filename.lower().endswith((".jpg", ".jpeg", ".png")):
+    #             img_path = os.path.join(folder, filename)
+    #             try:
+    #                 results = reader.readtext(img_path, detail=0, paragraph=False)
+    #                 all_texts.extend(results)
+    #             except Exception as e:
+    #                 print(f"Failed to process {filename}: {e}")
+    #     plate_set = clean_and_match_plates(all_texts)
+    #     plate_sets.append(', '.join(plate_set) if plate_set else "")
 
-    scraped_df['Possible Plates'] = plate_sets
-    scraped_df.to_excel(os.path.join(SAVE_DIR, f"cars_with_plates_{datetime.now().date()}.xlsx"), index=False)
+    # scraped_df['Possible Plates'] = plate_sets
+    # scraped_df.to_excel(os.path.join(DATA_DIR, f"cars_with_plates_{datetime.now().date()}.xlsx"), index=False)
     
     
