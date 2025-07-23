@@ -34,6 +34,7 @@ export default function Home() {
 
     const sortAds = (adsArray, key, direction) => {
         const keyMap = {
+        "Title": (ad) => ad.Title || "",
         "Price": (ad) => parseInt(ad.Price.replace(/[^0-9]/g, "")) || 0,
         "Mileage": (ad) => ad.Mileage || 0,
         "Registered Year": (ad) => {
@@ -42,7 +43,7 @@ export default function Home() {
         },
         "Distance": (ad) => ad["Distance (miles)"] || 0,
         "Ad post date": (ad) => new Date(ad["Ad post date"]),
-        "Scraped at": (ad) => new Date(ad["Scraped at"])   
+        "Scraped at": (ad) => new Date(ad["Scraped at"]),
         };
 
         return [...adsArray].sort((a, b) => {
@@ -108,6 +109,7 @@ export default function Home() {
             onChange={handleSortChange}
             className="px-3 py-1 border rounded shadow-sm text-gray-800 bg-white"
             >
+            <option>Title</option>
             <option>Price</option>
             <option>Mileage</option>
             <option>Registered Year</option>
