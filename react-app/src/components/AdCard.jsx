@@ -1,5 +1,27 @@
 import React from "react";
 
+function getDaysAgo(postDateStr) {
+  if (!postDateStr) return null;
+
+  const postDate = new Date(postDateStr);
+  const today = new Date();
+  const diffTime = today - postDate;
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  if (isNaN(diffDays)) return null;
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "1 day ago";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 14) return "Last week";
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+
+  return "Over a year ago";
+}
+
+
+
 export default function AdCard({ ad }) {
   if (!ad || Object.keys(ad).length === 0) {
     return <div className="text-center p-4">Invalid ad data</div>;
@@ -9,9 +31,9 @@ export default function AdCard({ ad }) {
     <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
       {/* Placeholder image */}
       <img
-        src="https://via.placeholder.com/400x250?text=Car+Image"
-        alt="Placeholder"
-        className="w-full h-64 object-cover"
+        src={`http://localhost:5000/api/thumbnail/${ad["Ad ID"]}`}
+        alt={`Thumbnail for ${ad?.Title || "car"}`}
+        className="w-full h-64 object-cover bg-gray-100"
       />
 
       <div className="p-4 space-y-2 text-center">
@@ -41,8 +63,13 @@ export default function AdCard({ ad }) {
         </div>
 
         {/* Post Date */}
-        <div className="text-xs text-gray-400">
-          Posted: {ad?.["Ad post date"] || "Unknown"}
+        <div className="text-xs text-zinc-500">
+          <div>Posted: {ad?.["Ad post date"] || "Unknown"}</div>          
+          {getDaysAgo(ad?.["Ad post date"]) && (
+            <div className="text-[12px] text-zinc-500 italic">
+              {getDaysAgo(ad["Ad post date"])} 
+              </div>
+          )}
         </div>
 
         {/* View Link */}

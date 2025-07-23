@@ -25,7 +25,7 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
       <div className="relative flex items-center justify-center w-full max-w-2xl">
         <button
           onClick={prev}
-          className="absolute left-[-2.5rem] text-3xl text-gray-500 hover:text-black transition"
+          className="absolute left-[-4.0rem] text-3xl text-gray-500 hover:text-black transition"
         >
           ◀
         </button>
@@ -34,7 +34,7 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
 
         <button
           onClick={next}
-          className="absolute right-[-2.5rem] text-3xl text-gray-500 hover:text-black transition"
+          className="absolute right-[-4.0rem] text-3xl text-gray-500 hover:text-black transition"
         >
           ▶
         </button>

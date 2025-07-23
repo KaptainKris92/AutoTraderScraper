@@ -1,8 +1,10 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from utils.database_utils import create_table_if_not_exists, update_flag, load_ads
+
 
 app = Flask(__name__)
 TABLE_NAME = 'ads'
+THUMBNAIL_DIR = 'thumbnails'
 
 @app.route('/api/fav_exc', methods = ['POST'])
 def favourite_or_exclude_ad():
@@ -36,6 +38,11 @@ def favourite_or_exclude_ad():
 def get_ads():
     ads = load_ads('ads')
     return jsonify(ads)
+
+@app.route('/api/thumbnail/<ad_id>', methods = ['GET'])
+def serve_thumbnail(ad_id):
+    filename = f'{ad_id}.jpg'
+    return send_from_directory(THUMBNAIL_DIR, filename)
 
 if __name__ == '__main__':
     create_table_if_not_exists(TABLE_NAME)
