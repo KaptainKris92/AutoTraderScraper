@@ -1,7 +1,5 @@
 import easyocr, re, os
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = 3 # Silence Tensorflow warnings: 0 = all logs, 1 = filter INFO, 2 = filter WARNING, 3 = filter ERROR
-
 # Move to new 'image_ocr.py'?
 def clean_and_match_plates(ocr_texts):
     plate_candidates = set()

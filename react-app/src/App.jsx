@@ -43,11 +43,18 @@ function App() {
 
   const handleSortChange = (e) => setSortBy(e.target.value);
 
-  const updateFavourite = (adId) => {
+  const updateFavourite = (adId, newValue = 1) => {
     fetch("/api/fav_exc", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ad_id: adId, operation: "favourite", value: 1}),
+      body: JSON.stringify({ ad_id: adId, operation: "favourite", value: newValue}),
+    }).then(() => {
+      // Update local state for immediate feedback
+      setAds((prevAds) =>
+        prevAds.map((ad) =>
+          ad["Ad ID"] === adId ? { ...ad, Favourited: newValue } : ad 
+        )
+      );      
     });
   };
 
@@ -58,6 +65,8 @@ function App() {
       body: JSON.stringify({ ad_id: adId, operation: "exclude", value: 1}),
     });
   };
+
+  const filteredAds = ads.filter(ad => ad.Excluded !== 1); // Don't show excluded ads
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-start py-10 space-y-6">
@@ -86,7 +95,7 @@ function App() {
 
       {ads.length > 0 ? (
         <CardViewer
-          ads={ads}
+          ads={filteredAds}
           updateFavourite={updateFavourite}
           updateExclude={updateExclude}
         />

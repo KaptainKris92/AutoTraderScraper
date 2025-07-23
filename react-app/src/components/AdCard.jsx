@@ -1,4 +1,5 @@
 import React from "react";
+import { FaHeart } from "react-icons/fa";
 
 function getDaysAgo(postDateStr) {
   if (!postDateStr) return null;
@@ -20,21 +21,22 @@ function getDaysAgo(postDateStr) {
   return "Over a year ago";
 }
 
-
-
 export default function AdCard({ ad }) {
   if (!ad || Object.keys(ad).length === 0) {
     return <div className="text-center p-4">Invalid ad data</div>;
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-      {/* Placeholder image */}
+    <div className="w-full max-w-md mx-auto bg-white rounded-2xl shadow-md overflow-hidden sm:rounded-xl sm:shadow-lg">
+    
+      {/* Thumbnail image */}
+      <div className="w-full aspect-[4/3] sm:h-80 sm:aspect-auto bg-gray-100 flex items-center justify-center">
       <img
-        src={`http://localhost:5000/api/thumbnail/${ad["Ad ID"]}`}
+        src={`/api/thumbnail/${ad["Ad ID"]}`}
         alt={`Thumbnail for ${ad?.Title || "car"}`}
-        className="w-full h-64 object-cover bg-gray-100"
+        className="w-full h-full object-cover"
       />
+      </div>
 
       <div className="p-4 space-y-2 text-center">
         {/* Mileage & Reg Year */}
@@ -83,6 +85,12 @@ export default function AdCard({ ad }) {
             View on AutoTrader
           </a>
         </div>
+
+        {ad.Favourited === 1 && (
+          <div className = "absolute bottom-2 left-2 text-pink-500 text-xl">
+            <FaHeart />
+          </div>
+        )}
       </div>
     </div>
   );
