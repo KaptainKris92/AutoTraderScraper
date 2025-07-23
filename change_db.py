@@ -34,18 +34,39 @@ def clear_all():
     
 def clear_exclude(timeframe):
     if timeframe == 'all':
-        pass
+        query = '''
+        UPDATE ads
+        SET Excluded = 0
+        '''
+        execute_query(query)
+        
     elif timeframe == 'today':
-        pass
+        today_str = datetime.now().strftime('%Y-%m-%d')
+        query = f'''
+        UPDATE ads
+        SET Excluded = 0
+        WHERE [Scraped at] LIKE "{today_str}%"
+        '''
+        execute_query(query)
     else:
         print("Invalid timeframe.")
-    pass
+    
 
 def clear_favourite(timeframe):
     if timeframe == 'all':
-        pass
+        query = '''
+        UPDATE ads
+        SET Favourited = 0
+        '''
+        execute_query(query)
     elif timeframe == 'today':
-        pass
+        today_str = datetime.now().strftime('%Y-%m-%d')
+        query = f'''
+        UPDATE ads
+        SET Excluded = 0
+        WHERE [Scraped at] LIKE "{today_str}%"
+        '''
+        execute_query(query)
     else:
         print("Invalid timeframe.")
     pass
