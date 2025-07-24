@@ -1,10 +1,12 @@
 import { useState, useRef} from "react";
 import AdCard from "./AdCard";
-import { FaHeart, FaTimes } from "react-icons/fa";
+import { FaHeart, FaTimes, FaCar } from "react-icons/fa";
 import { useDrag } from '@use-gesture/react'; // For mobile swiping
+import MOTHistoryModal from "./MOTHistoryModal";
 
 export default function CardViewer({ ads, updateFavourite, updateExclude }) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [showMOTModal, setShowMOTModal] = useState(false);
   
   if (!ads || ads.length === 0) {
     return <p className="text-center mt-20 text-gray-600 text-lg">No ads available</p>;
@@ -25,20 +27,23 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
     ({ swipe: [swipeX, swipeY] }) => {
       if (swipeX === -1) next(); // Left
       if (swipeX === 1) prev(); // Right 
-      // Up
-      if (swipeY === -1 && currentAd["Ad ID"]) { 
-        const newFaveStatus = currentAd.Favourited === 1 ? 0 : 1;
-        updateFavourite(currentAd["Ad ID"], newFaveStatus)
-      }
-      if (swipeY === 1) updateExclude(currentAd["Ad ID"]); // Down
+      // // Up
+      // if (swipeY === -1 && currentAd["Ad ID"]) { 
+      //   const newFaveStatus = currentAd.Favourited === 1 ? 0 : 1;
+      //   updateFavourite(currentAd["Ad ID"], newFaveStatus)
+      // }
+      // if (swipeY === 1) updateExclude(currentAd["Ad ID"]); // Down
     },
     { axis: undefined, swipe: { velocity: 0.2, distance: 30 }}
   )
 
   const cardRef = useRef(null);
 
+
+
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-start pt-2 pb-24">      
+    <div className="relative min-h-screen flex flex-col items-center justify-start pt-2 pb-14">          
+
       {/* Card & Arrows */}
       <div 
         {...bind()}
@@ -64,9 +69,10 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
 
         {/* Tap zones for mobile (left/right) */}      
         <div className="absolute top-0 left-0 h-full w-[15%] z-10" onClick={prev}></div>     
-        <div className="absolute top-0 right-0 h-full w-[15%] z-10" onClick={next}></div>
+        <div className="absolute top-0 right-0 h-full w-[15%] z-10" onClick={next}></div>        
 
-        <AdCard ad={currentAd} />
+        <div><AdCard ad={currentAd} /></div>        
+
       </div>
       
 
@@ -91,6 +97,18 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
           <FaTimes />
         </button>
       </div>
+    <button
+      onClick={() => setShowMOTModal(true)}
+      className="fixed bottom-4 right-4 z-50 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg"
+      title="MOT History"
+    >
+      <FaCar className="text-xl" />
+    </button>      
+
+    {showMOTModal && (
+      <MOTHistoryModal onClose={() => setShowMOTModal(false)} adId={currentAd["Ad ID"]} />
+    )}
+
     </div>
   );
 }
