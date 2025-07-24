@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory
 from utils.database_utils import create_table_if_not_exists, update_flag, load_ads
+from utils.mot_history import get_mot_history
 
 
 app = Flask(__name__)
@@ -43,6 +44,23 @@ def get_ads():
 def serve_thumbnail(ad_id):
     filename = f'{ad_id}.jpg'
     return send_from_directory(THUMBNAIL_DIR, filename)
+
+@app.route('/api/mot_history', methods = ['GET'])
+def query_mot_history():
+    try:
+        reg = request.args.get("reg")
+        if not reg:
+            return jsonify({'error': 'Missing registration number'}), 400
+        
+        result = get_mot_history(reg.upper())
+        
+        if 'error' in result:
+            return jsonify(result), 403 if 'Forbidden' in result.get('details', '') else 500
+        
+        return jsonify(result)
+    except Exception as e:
+        print('❌ Internal server error in /api/mot_history:', str(e))
+        
 
 if __name__ == '__main__':
     create_table_if_not_exists(TABLE_NAME)

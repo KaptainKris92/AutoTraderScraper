@@ -121,7 +121,14 @@ export default function MOTHistoryModal({ onClose, adId }) {
             </button>
 
             <button
-            onClick={() => console.log("Fetch MOT history")}
+            onClick={async() => {                
+                console.log(encodeURIComponent(regInput))
+                const res = await fetch (`/api/mot_history?reg=${encodeURIComponent(regInput)}`);
+                const data = await res.json();
+                console.log("MOT data:", data);
+                // TODO: setMOTResults(data) to store/display data
+                
+            }}
             className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded disabled:bg-gray-400"
             disabled={!regInput}
             >

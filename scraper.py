@@ -21,10 +21,6 @@ from pathlib import Path
 from utils.database_utils import create_table_if_not_exists, check_ad_id_exists, save_to_sql
 from utils.general_utils import extract_post_date
 
-# Environment variables needed for MOT History API
-from dotenv import load_dotenv
-load_dotenv('./.env')
-
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = 3 # Silence Tensorflow warnings: 0 = all logs, 1 = filter INFO, 2 = filter WARNING, 3 = filter ERROR
 
 # With filters: Under £5k, within 50 miles of Caerphilly, Automatic transmission, <125k miles
@@ -74,7 +70,6 @@ def create_stealth_driver(headless=True, url = AUTOTRADER_URL):
     options.add_argument("--log-level-3") # Suppresses all but fatal logs
     options.add_argument("--disable-logging")
     
-
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
     # Apply stealth settings
@@ -259,30 +254,6 @@ def download_thumbnail(ad_id, thumbnail_url, save_dir = 'thumbnails'):
             print(f'❌ Failed to download image for {ad_id}, status {response.status_code}')     
     except Exception as e:
         print(f"❌ Error downloading thumbnail for {ad_id}: {e}")
-            
-    
-    
-    # driver = create_stealth_driver(headless = True, url = ad_url)
-    # reject_cookies(driver)
-    
-    # try:
-    #     WebDriverWait(driver, 10).until(
-    #         EC.presence_of_element_located((By.CSS_SELECTOR, "img.ImageGalleryImage__image"))
-    #     )
-        
-    #     thumb = driver.find_element(By.CSS_SELECTOR, "img.ImageGalleryImage__image")
-    #     img_url = thumb.get_attribute("src")
-        
-    #     if img_url:
-    #         response = requests.get(img_url)
-    #         if response.status_code == 200:
-    #             with open(f'{save_dir}/{ad_id}.jpg', 'wb') as f:
-    #                 f.write(response.content)
-    #             print(f'✅ Saved thumbanil for {ad_id}') # TODO: Remove after debugging
-    # except Exception as e:
-    #     print(f'⚠️ Failed to get thumbnail for {ad_id}: {e}')
-    # finally:
-    #     driver.quit()
 
 def download_pictures(ad_id, ad_url):
     folder = Path("images") / ad_id
