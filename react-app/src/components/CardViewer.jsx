@@ -1,4 +1,4 @@
-import React, { useState, useRef} from "react";
+import { useState, useRef} from "react";
 import AdCard from "./AdCard";
 import { FaHeart, FaTimes } from "react-icons/fa";
 import { useDrag } from '@use-gesture/react'; // For mobile swiping

@@ -1,6 +1,7 @@
-// src/pages/Favourites.jsx
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { sortAds } from "../utils/sortUtils";
+import SortControls from "../components/SortControls";
 
 export default function Favourites() {
     const [ads, setAds] = useState([]);
@@ -21,41 +22,6 @@ export default function Favourites() {
         })
         .catch((err) => console.error("Failed to load favourites:", err));
     }, [sortBy, sortDirection]);
-
-    const sortAds = (adsArray, key, direction) => {
-        const keyMap = {
-        "Title": (ad) => ad.Title || "",
-        "Price": (ad) => parseInt(ad.Price.replace(/[^0-9]/g, "")) || 0,
-        "Mileage": (ad) => ad.Mileage || 0,
-        "Registered Year": (ad) => {
-            const yearMatch = ad["Registered Year"]?.match(/\d{4}/);
-            return yearMatch ? parseInt(yearMatch[0]) : 0;
-        },
-        "Distance": (ad) => ad["Distance (miles)"] || 0,
-        "Ad post date": (ad) => new Date(ad["Ad post date"]),
-        "Scraped at": (ad) => new Date(ad["Scraped at"]),
-        };
-
-        return [...adsArray].sort((a, b) => {
-        const valA = keyMap[key](a);
-        const valB = keyMap[key](b);
-        if (valA > valB) return direction === "asc" ? 1 : -1;
-        if (valA < valB) return direction === "asc" ? -1 : 1;
-        return 0;
-        });
-    };
-
-    const handleSortChange = (e) => {
-        const newSortBy = e.target.value;
-        setSortBy(newSortBy);
-        setSearchParams({ sortBy: newSortBy, direction: sortDirection });
-    };
-
-    const toggleSortDirection = () => {
-        const newDirection = sortDirection === "asc" ? "desc" : "asc";
-        setSortDirection(newDirection);
-        setSearchParams({ sortBy, direction: newDirection });
-    };
 
     const handleUnfavourite = (adId) => {
         fetch("/api/fav_exc", {
@@ -87,28 +53,13 @@ export default function Favourites() {
         <div className="min-h-screen bg-gray-100 px-4 py-8">
         <h2 className="text-2xl font-bold mb-6 text-center">Favourited Cars</h2>
 
-        <div className="text-sm mb-4 text-center">
-            <label className="mr-2 font-medium text-gray-700">Sort by:</label>
-            <select
-            value={sortBy}
-            onChange={handleSortChange}
-            className="px-3 py-1 border rounded shadow-sm text-gray-800 bg-white"
-            >
-            <option>Title</option>
-            <option>Price</option>
-            <option>Mileage</option>
-            <option>Registered Year</option>
-            <option>Distance</option>
-            <option>Ad post date</option>
-            <option>Scraped at</option>
-            </select>
-            <button
-            onClick={toggleSortDirection}
-            className="ml-4 px-3 py-1 border rounded text-sm bg-white shadow-sm"
-            >
-            {sortDirection === "asc" ? "⬆ Ascending" : "⬇ Descending"}
-            </button>
-        </div>
+        <SortControls
+            sortBy={sortBy}
+            sortDirection={sortDirection}
+            setSortBy={setSortBy}
+            setSortDirection={setSortDirection}
+            setSearchParams={setSearchParams}
+        />
 
         {ads.length === 0 ? (
             <p className="text-center text-gray-600">No favourites yet.</p>
