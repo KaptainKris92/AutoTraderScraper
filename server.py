@@ -48,7 +48,7 @@ def serve_thumbnail(ad_id):
 @app.route('/api/mot_history', methods = ['GET'])
 def query_mot_history():
     try:
-        reg = request.args.get("reg")
+        reg = request.args.get("reg").replace(" ", "").strip()
         if not reg:
             return jsonify({'error': 'Missing registration number'}), 400
         
@@ -60,6 +60,7 @@ def query_mot_history():
         return jsonify(result)
     except Exception as e:
         print('❌ Internal server error in /api/mot_history:', str(e))
+        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
         
 
 if __name__ == '__main__':
