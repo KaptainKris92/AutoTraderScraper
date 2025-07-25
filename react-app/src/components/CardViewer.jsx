@@ -33,14 +33,11 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
   // Swipe triggers
   const bind = useDrag(
     ({ swipe: [swipeX, swipeY] }) => {
+      const modalOpen = document.querySelector(".modal-open");
+      if (modalOpen) return; // Don't swipe if a modal is open
+
       if (swipeX === -1) next(); // Left
-      if (swipeX === 1) prev(); // Right 
-      // // Up
-      // if (swipeY === -1 && currentAd["Ad ID"]) { 
-      //   const newFaveStatus = currentAd.Favourited === 1 ? 0 : 1;
-      //   updateFavourite(currentAd["Ad ID"], newFaveStatus)
-      // }
-      // if (swipeY === 1) updateExclude(currentAd["Ad ID"]); // Down
+      if (swipeX === 1) prev(); // Right       
     },
     { axis: undefined, swipe: { velocity: 0.2, distance: 30 }}
   );

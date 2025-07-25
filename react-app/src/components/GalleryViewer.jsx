@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useDrag } from '@use-gesture/react';
 
 export default function GalleryViewer({ adId, onClose, onImageChange }) {
     const [images, setImages] = useState([]);
@@ -42,33 +43,14 @@ export default function GalleryViewer({ adId, onClose, onImageChange }) {
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [currentIndex, images, onClose]);
 
-    // Mobile swipe support
-    useEffect(() => {
-        let startX = null;
-
-        const onTouchStart = (e) => (startX = e.touches[0].clientX);
-        const onTouchEnd = (e) => {
-            if (startX === null) return;
-            const endX = e.changedTouches[0].clientX;
-            const diff = startX - endX;
-
-            if (diff > 50) handleNext();
-            else if (diff < -50) handlePrev();
-
-            startX = null;
-        };
-
-        const galleryEl = document.getElementById("gallery-container");
-        if (!galleryEl) return;
-
-        galleryEl.addEventListener("touchstart", onTouchStart);
-        galleryEl.addEventListener("touchend", onTouchEnd);
-
-        return () => {
-            galleryEl.removeEventListener("touchstart", onTouchStart);
-            galleryEl.removeEventListener("touchend", onTouchEnd);
-        };
-    }, [currentIndex]);
+    // Mobile swipe to move
+    const bind = useDrag(
+        ({ swipe: [swipeX] }) => {
+            if (swipeX === -1) handleNext();
+            if (swipeX === 1) handlePrev(); 
+        },
+        { axis: 'x', swipe: { velocity: 0.2, distance: 30 }}
+    );
 
     // Scrolls image into view
     useEffect(() => {
@@ -115,6 +97,7 @@ export default function GalleryViewer({ adId, onClose, onImageChange }) {
 
                 <div
                     id="gallery-container"
+                    {...bind()}
                     ref={galleryRef}
                     className="w-full h-full flex items-center justify-center"
                 >
