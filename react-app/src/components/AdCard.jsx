@@ -1,4 +1,7 @@
-import { FaHeart } from "react-icons/fa";
+import { useState, useEffect } from "react";
+import { FaHeart, FaSearch, FaLink, FaEye } from "react-icons/fa";
+import BindMOTModal from "./BindMOTModal";
+import MOTHistoryModal from "./MOTHistoryModal";
 
 function getDaysAgo(postDateStr) {
   if (!postDateStr) return null;
@@ -21,6 +24,61 @@ function getDaysAgo(postDateStr) {
 }
 
 export default function AdCard({ ad }) {
+  const [showBindModal, setShowBindModal] = useState(false);
+  const [showMOTModal, setShowMOTModal] = useState(false);
+  const [boundReg, setBoundReg] = useState(null);
+  const [regInput, setRegInput] = useState("");
+
+  // Fetch the bound registration number
+  const fetchBoundReg = async () => {
+    const res = await fetch (`/api/mot_history?ad_id=${ad["Ad ID"]}`);
+    const data = await res.json();
+    if (data.length > 0) {
+      setBoundReg(data[0].registration);
+    } else {
+      setBoundReg(null);
+    }
+  };
+
+  // Show reg number bound to ad
+  useEffect(() => {
+    fetchBoundReg();
+  }, [ad]);
+
+
+  // Unbinding reg numbers
+  const handleUnbind = async () => {
+    if (!boundReg) return;
+    await fetch(`/api/mot_history/bind`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ registration: boundReg, ad_id: "" }),      
+    });
+    setBoundReg(null); // Update UI
+  }
+
+  // Quick search 
+  const handleQuickSearch = async() => {
+    try {
+      const res = await fetch (`/api/mot_history/query?reg=${encodeURIComponent(regInput)}`);
+      const data = await res.json();
+      if (!data || data.error) throw new Error(data.error || "Invalid response");
+
+      await fetch("/api/mot_history", {
+        method: "POST",
+        headers: { "Content-Type" : "application/json" },
+        body: JSON.stringify({ registration: regInput.replace(/\s+/g, "").toUpperCase(), data, ad_id: null }),        
+      });
+
+      setRegInput("");
+      alert("✅ MOT history saved.");      
+    } catch (err) {
+      console.error("❌ MOT search failed:", err);
+      alert("Failed to retrieve MOT history. Please check the registration number.");
+    }
+      
+  }
+
   if (!ad || Object.keys(ad).length === 0) {
     return <div className="text-center p-4">Invalid ad data</div>;
   }
@@ -28,7 +86,7 @@ export default function AdCard({ ad }) {
   return (
     <div className="w-full max-w-md mx-auto bg-white rounded-2xl shadow-md overflow-hidden sm:rounded-xl sm:shadow-lg">
     
-      {/* Thumbnail image */}
+      {/* Thumbnail image  + quick reg input */}
       <div className="w-full aspect-[4/3] sm:h-80 sm:aspect-auto bg-gray-100 flex items-center justify-center">
       <img
         src={`/api/thumbnail/${ad["Ad ID"]}`}
@@ -36,6 +94,23 @@ export default function AdCard({ ad }) {
         className="w-full h-full object-cover"
       />
       </div>
+
+      {/* Quick reg input overlay */}
+      <div className="absolute bottom-1 left-1 right-1 bg-white/80 p-1 flex gap-2 items-center justify-center rounded shadow-md">
+        <input
+          type="text"
+          placeholder="Enter Reg"
+          value={regInput}
+          onChange={(e) => setRegInput(e.target.value.toUpperCase())}
+          className="text-xs text-center border p-1 rounded w-24"
+        />
+        <button
+          onClick={handleQuickSearch}
+          className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          <FaSearch />
+        </button>
+      </div>      
 
       <div className="p-4 space-y-2 text-center">
         {/* Mileage & Reg Year */}
@@ -48,6 +123,9 @@ export default function AdCard({ ad }) {
           <span>{ad?.["Registered Year"] || "Unknown year"}</span>
         </div>
 
+        {/* Bound registration */}
+        {boundReg && <div className="text-xs text-gray-500">Reg: {boundReg}</div>}        
+        
         {/* Title & Subtitle */}
         <div>
           <div className="text-lg font-bold text-gray-800">{ad?.Title || "No title"}</div>
@@ -84,13 +162,60 @@ export default function AdCard({ ad }) {
             View on AutoTrader
           </a>
         </div>
-
+        
+        {/* 'Favourited' indicator */}
         {ad.Favourited === 1 && (
           <div className = "absolute bottom-2 left-2 text-pink-500 text-xl">
             <FaHeart />
           </div>
         )}
+
+        {/* Bind/Unbind + View */}
+        {boundReg ? (
+          <>
+            <button
+              onClick={() => setShowMOTModal(true)}
+              className="absolute bottom-2 right-10 text-blue-600 text-xl z-20"
+              title="View MOT History"
+            >
+              <FaEye />
+            </button>
+            <button
+              className="absolute bottom-2 right-2 text-red-600 text-xl z-20"
+              onClick={handleUnbind}
+              title="Unbind MOT"
+            >
+              ✕
+            </button>
+          </>
+        ) : (
+          <button
+            className="absolute bottom-2 right-2 text-blue-600 text-xl z-20"
+            onClick={() => setShowBindModal(true)}
+            title="Bind MOT"
+          >
+            <FaLink />
+          </button>
+        )}
       </div>
+
+      {showBindModal && (
+        <BindMOTModal 
+          adId={ad["Ad ID"]} 
+          onClose={() => setShowBindModal(false)} 
+          onBindSuccess={fetchBoundReg} 
+        />
+    )}
+      {showMOTModal && (
+        <MOTHistoryModal
+          onClose={() => {
+            setShowMOTModal(false);
+            fetchBoundReg(); // Refresh boundReg when modal closes
+          }}
+          adId={ad["Ad ID"]}
+          initialReg={boundReg}
+        />
+      )}
     </div>
   );
 }

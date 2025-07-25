@@ -1,11 +1,9 @@
 import os
-import re
 import sqlite3
-import hashlib
+import json
 from datetime import datetime
-
 import pandas as pd
-from pathlib import Path
+
 
 # SQLite location
 DATA_DIR = 'data'
@@ -92,7 +90,46 @@ def load_ads(table = 'ads'):
         df = pd.read_sql_query(f'SELECT * FROM {table}', conn)
         df = df.fillna("").replace({float("nan"): ""})
         return df.to_dict(orient='records')
+    
+def save_mot_history(reg, data, ad_id = None, table_name = 'mot_history'):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            f'''
+            INSERT OR REPLACE INTO {table_name} (registration, mot_data, ad_id, created_at)
+            VALUES (?, ?, ?, ?)
+            ''',
+            (reg.upper(), json.dumps(data), ad_id, datetime.now().isoformat())
+        )
+        conn.commit()
+
+def get_mot_histories(ad_id = None, table_name = 'mot_history'):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        if ad_id is None: 
+            cursor.execute(f"SELECT registration, mot_data, ad_id FROM {table_name}")            
+        else:
+            cursor.execute(f"SELECT registration, mot_data, ad_id FROM {table_name} WHERE ad_id = ?", (ad_id,))
+        return [
+            {"registration": row[0], "data": json.loads(row[1]), "ad_id": row[2]}
+            for row in cursor.fetchall()
+        ]
         
+def delete_mot_history(reg, table_name = 'mot_history'):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(f"DELETE FROM {table_name} WHERE registration = ?", (reg.upper(),))
+        conn.commit()
+        
+def bind_mot_to_ad(reg, ad_id, table_name = 'mot_history'):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        if ad_id is None:
+            cursor.execute(f"UPDATE {table_name} SET ad_id = NULL WHERE registration = ?", (reg.upper(),))
+        else:
+            cursor.execute(f"UPDATE {table_name} SET ad_id = ? WHERE registration = ?", (ad_id, reg.upper()))
+        conn.commit()
+
 if __name__ == "__main__":
     # create_ads_table()
     # insert_test_ad()
