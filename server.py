@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify, send_from_directory
 from utils.database_utils import create_ads_table, update_flag, load_ads, save_mot_history, get_mot_histories, delete_mot_history, bind_mot_to_ad
 from utils.mot_history import get_mot_history
 
-
 app = Flask(__name__)
 TABLE_NAME = 'ads'
 THUMBNAIL_DIR = 'thumbnails'
@@ -38,6 +37,9 @@ def favourite_or_exclude_ad():
 @app.route('/api/ads', methods = ['GET'])
 def get_ads():
     ads = load_ads('ads')
+    
+    if not ads:
+        return jsonify({"message": "No ads found", "data": []}), 200
     return jsonify(ads)
 
 @app.route('/api/thumbnail/<ad_id>', methods = ['GET'])
@@ -82,7 +84,7 @@ def get_all_mot():
         ad_id = None
         print('Fetching all MOT histories')
     else:
-        print('Fetching MOT history for ad_id {ad_id}')
+        print(f'Fetching MOT history for ad_id {ad_id}')
     
     histories = get_mot_histories(ad_id)
     return jsonify(histories)
