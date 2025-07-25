@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FaHeart, FaSearch, FaLink, FaEye } from "react-icons/fa";
+import { FaHeart, FaSearch, FaLink, FaEye, FaUnlink } from "react-icons/fa";
 import BindMOTModal from "./BindMOTModal";
 import MOTHistoryModal from "./MOTHistoryModal";
 
@@ -87,12 +87,29 @@ export default function AdCard({ ad }) {
     <div className="w-full max-w-md mx-auto bg-white rounded-2xl shadow-md overflow-hidden sm:rounded-xl sm:shadow-lg">
     
       {/* Thumbnail image  + quick reg input */}
-      <div className="w-full aspect-[4/3] sm:h-80 sm:aspect-auto bg-gray-100 flex items-center justify-center">
+      <div className="relative w-full aspect-[4/3] sm:h-80 sm:aspect-auto bg-gray-100">
       <img
         src={`/api/thumbnail/${ad["Ad ID"]}`}
         alt={`Thumbnail for ${ad?.Title || "car"}`}
         className="w-full h-full object-cover"
       />
+
+      {/* AutoTrader logo & URL */}
+      {ad?.["Ad URL"] && (
+        <a
+          href={ad["Ad URL"]}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="View on AutoTrader"
+          className="absolute bottom-0.5 left--1 rounded p-1 z-30"
+        >
+          <img
+            src="/icons/autotrader-logo-small.png"
+            alt="AutoTrader"
+            className="w-12 h-15 hover:scale-110 transition-transform"
+          />
+        </a>
+      )}
       </div>
 
       {/* Quick reg input overlay */}
@@ -120,16 +137,21 @@ export default function AdCard({ ad }) {
               ? ad.Mileage.toLocaleString() + " mi"
               : "Unknown mileage"}
           </span>
+
+          {/* Bound registration */}
+          {boundReg && <div className="text-xs text-gray-500">Reg: {boundReg}</div>}   
+
           <span>{ad?.["Registered Year"] || "Unknown year"}</span>
         </div>
-
-        {/* Bound registration */}
-        {boundReg && <div className="text-xs text-gray-500">Reg: {boundReg}</div>}        
         
         {/* Title & Subtitle */}
-        <div>
+        <div className="relative flex flex-col items-center">
+          {/* Ad Title */}
           <div className="text-lg font-bold text-gray-800">{ad?.Title || "No title"}</div>
-          <div className="text-sm text-gray-500">{ad?.Subtitle || ""}</div>
+          
+          {/* Subtitle */}
+          <div className="text-sm text-gray-500">{ad?.Subtitle || ""}</div>        
+          
         </div>
 
         {/* Price */}
@@ -145,22 +167,10 @@ export default function AdCard({ ad }) {
         <div className="text-xs text-zinc-500">
           <div>Posted: {ad?.["Ad post date"] || "Unknown"}</div>          
           {getDaysAgo(ad?.["Ad post date"]) && (
-            <div className="text-[12px] text-zinc-500 italic">
+            <div className="text-[12px] text-zinc-500 italic mb-6">
               {getDaysAgo(ad["Ad post date"])} 
               </div>
           )}
-        </div>
-
-        {/* View Link */}
-        <div className="pt-2">
-          <a
-            href={ad?.["Ad URL"] || "#"}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 underline text-sm"
-          >
-            View on AutoTrader
-          </a>
         </div>
         
         {/* 'Favourited' indicator */}
@@ -170,9 +180,10 @@ export default function AdCard({ ad }) {
           </div>
         )}
 
-        {/* Bind/Unbind + View */}
+        {/* Bind/Unbind + View MOT history */}
         {boundReg ? (
           <>
+            {/* View bound MOT History */}
             <button
               onClick={() => setShowMOTModal(true)}
               className="absolute bottom-2 right-10 text-blue-600 text-xl z-20"
@@ -180,12 +191,14 @@ export default function AdCard({ ad }) {
             >
               <FaEye />
             </button>
+
+            {/* Unbind MOT History */}
             <button
-              className="absolute bottom-2 right-2 text-red-600 text-xl z-20"
+              className="absolute bottom-2 right-3 text-red-600 text-xl z-20"
               onClick={handleUnbind}
               title="Unbind MOT"
             >
-              ✕
+              <FaUnlink />
             </button>
           </>
         ) : (

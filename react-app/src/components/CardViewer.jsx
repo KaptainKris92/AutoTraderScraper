@@ -39,8 +39,6 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
 
   const cardRef = useRef(null);
 
-
-
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-start pt-2 pb-14">          
 
@@ -70,9 +68,7 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
         {/* Tap zones for mobile (left/right) */}      
         <div className="absolute top-0 left-0 h-full w-[15%] z-10 block sm:hidden" onClick={prev}></div>     
         <div className="absolute top-0 right-0 h-full w-[15%] z-10 block sm:hidden" onClick={next}></div>        
-
         <div><AdCard ad={currentAd} /></div>        
-
       </div>
       
 
