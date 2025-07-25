@@ -149,9 +149,10 @@ def bind_mot_to_ad(reg, ad_id, table_name = 'mot_history'):
             cursor.execute(f"UPDATE {table_name} SET ad_id = ? WHERE registration = ?", (ad_id, reg.upper()))
         conn.commit()
         
-if __name__ == "__main__":
-    # create_ads_table()
-    # insert_test_ad()
-    # print(check_ad_id_exists('e46b69ca14'))
+def ensure_tables_exist():
+    create_ads_table()
     create_mot_history_table()
+        
+if __name__ == "__main__":
+    ensure_tables_exist()
     pass
