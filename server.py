@@ -8,23 +8,6 @@ app = Flask(__name__)
 TABLE_NAME = 'ads'
 THUMBNAIL_DIR = Path('thumbnails')
 
-import re
-
-def extract_highest_res_images(ad_urls):
-    pattern = re.compile(r"/w(\d+)/([a-f0-9]+)\.jpg")
-    best_images = {}
-
-    for url in ad_urls:
-        match = pattern.search(url)
-        if match:
-            width = int(match.group(1))
-            key = match.group(2)  # hash name of image
-            if key not in best_images or width > best_images[key][0]:
-                best_images[key] = (width, url)
-
-    return [info[1] for info in best_images.values()]
-
-
 @app.route('/api/fav_exc', methods = ['POST'])
 def favourite_or_exclude_ad():
     data = request.get_json()

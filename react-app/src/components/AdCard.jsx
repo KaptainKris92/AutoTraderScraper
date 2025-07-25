@@ -181,6 +181,7 @@ export default function AdCard({ ad }) {
     fetchImageCount();
   }, [ad["Ad ID"]]);
 
+  // RETURN
   return (
     <>
       {downloading && (
@@ -199,16 +200,23 @@ export default function AdCard({ ad }) {
       >
         {/* Thumbnail image  + quick reg input */}
         <div className="relative w-full aspect-[4/3] sm:h-80 sm:aspect-auto bg-gray-100">
-          <img
-            src={currentThumb}
-            alt={`Thumbnail for ${ad?.Title || "car"}`}
-            className="w-full h-full object-cover"
-            onError={() => {
-              console.log(`Thumbnail for ${ad["Ad ID"]} is missing.`);
-              setThumbnailMissing(true);
-            }}
-            onClick={handleThumbnailClick}
-          />
+          {currentThumb ? (
+            <img
+              src={currentThumb}
+              alt={`Thumbnail for ${ad?.Title || "car"}`}
+              className="w-full h-full object-cover"
+              onError={() => {
+                console.log(`Thumbnail for ${ad["Ad ID"]} is missing.`);
+                setThumbnailMissing(true);
+              }}
+              onClick={handleThumbnailClick}
+            />
+          ) : (
+            <div className="w-full h-full bg-gray-200 flex items-center justify-center text-sm text-gray-500">
+              No image
+            </div>
+          )}
+
 
           {/* AutoTrader logo & URL */}
           {ad?.["Ad URL"] && (
