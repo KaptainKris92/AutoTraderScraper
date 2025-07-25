@@ -14,8 +14,8 @@ DB_PATH = os.path.join(DATA_DIR, 'autotrader_listings.db')
 # Create dir if doesn't exist
 os.makedirs(DATA_DIR, exist_ok = True)
 
-# Create SQLite table
-def create_table_if_not_exists(table_name):
+# Create SQLite table for storing scraped ad info
+def create_ads_table(table_name = 'ads'):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute(f'''
@@ -33,6 +33,19 @@ def create_table_if_not_exists(table_name):
                            "Favourited" INTEGER DEFAULT 0,
                            "Excluded" INTEGER DEFAULT 0,
                            "Scraped at" TEXT                           
+                       )
+                       ''')
+        conn.commit()
+        
+def create_mot_history_table(table_name = 'mot_history'):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(f'''
+                       CREATE TABLE IF NOT EXISTS {table_name} (
+                           "registration" TEXT PRIMARY KEY,
+                           "mot_data" TEXT NOT NULL,
+                           "ad_id" TEXT,
+                           "created_at" TEXT NOT NULL                           
                        )
                        ''')
         conn.commit()
@@ -81,7 +94,8 @@ def load_ads(table = 'ads'):
         return df.to_dict(orient='records')
         
 if __name__ == "__main__":
-    # create_table_if_not_exists('ads')
+    # create_ads_table()
     # insert_test_ad()
     # print(check_ad_id_exists('e46b69ca14'))
+    create_mot_history_table()
     pass

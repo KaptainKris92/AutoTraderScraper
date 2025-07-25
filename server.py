@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from utils.database_utils import create_table_if_not_exists, update_flag, load_ads
+from utils.database_utils import create_ads_table, update_flag, load_ads
 from utils.mot_history import get_mot_history
 
 
@@ -64,5 +64,5 @@ def query_mot_history():
         
 
 if __name__ == '__main__':
-    create_table_if_not_exists(TABLE_NAME)
+    create_ads_table(TABLE_NAME)
     app.run(debug=True)

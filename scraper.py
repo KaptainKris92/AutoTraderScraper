@@ -18,7 +18,7 @@ import requests
 from pathlib import Path
 
 # Database functions
-from utils.database_utils import create_table_if_not_exists, check_ad_id_exists, save_to_sql
+from utils.database_utils import create_ads_table, check_ad_id_exists, save_to_sql
 from utils.general_utils import extract_post_date
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = 3 # Silence Tensorflow warnings: 0 = all logs, 1 = filter INFO, 2 = filter WARNING, 3 = filter ERROR
@@ -327,7 +327,7 @@ def download_pictures(ad_id, ad_url):
 
 
 if __name__ == "__main__":
-    create_table_if_not_exists(TABLE_NAME)
+    create_ads_table(TABLE_NAME)
     scraped_df = scrape_autotrader()    
     save_to_sql(scraped_df, TABLE_NAME)
     print(f'{len(scraped_df)} new listings saved to database')
