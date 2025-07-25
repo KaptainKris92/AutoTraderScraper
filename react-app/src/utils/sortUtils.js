@@ -14,8 +14,13 @@ export const sortKeyMap = {
 export const sortOptions = Object.keys(sortKeyMap);
 
 export function sortAds(adsArray, key, direction = "asc") {
+    if (!Array.isArray(adsArray)) {
+        console.error("❌ sortAds expected array but got:", adsArray);
+        return [];
+    }
+
     const getVal = sortKeyMap[key];
-    if (!getVal) return adsArray; // fallback
+    if (!getVal) return adsArray;
 
     return [...adsArray].sort((a, b) => {
         const valA = getVal(a);
@@ -26,3 +31,4 @@ export function sortAds(adsArray, key, direction = "asc") {
         return 0;
     });
 }
+

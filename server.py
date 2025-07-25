@@ -42,7 +42,7 @@ def get_ads():
     
     if not ads:
         return jsonify({"message": "No ads found", "data": []}), 200
-    return jsonify(ads)
+    return jsonify({ "data": ads or [], "message": "ok"})
 
 @app.route('/api/thumbnail/<ad_id>', methods = ['GET'])
 def serve_thumbnail(ad_id):
