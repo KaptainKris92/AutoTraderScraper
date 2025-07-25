@@ -22,11 +22,11 @@ In a separate terminal within the `react-app` folder, run `npm run dev:auto`. Th
 
 ## MOT History
 
-Register for an MOT History API (here)[https://documentation.history.mot.api.gov.uk/mot-history-api/register].    
+Register for an MOT History API [here](https://documentation.history.mot.api.gov.uk/mot-history-api/register).    
 After 1-5 working days, you should receive an e-mail with the variables below. You should store in a `AutoTraderScraper/.env` file:
 
-- MOT_CLIENT_ID = "<Client ID>"
-- MOT_CLIENT_SECRET = "<Client Secret>"
-- MOT_API_KEY = "<API key>"
-- SCOPE_URL = "<Scope URL>"
-- TOKEN_URL = "<Token URL>"
+- MOT_CLIENT_ID = "`Client ID`"
+- MOT_CLIENT_SECRET = "`Client Secret`"
+- MOT_API_KEY = "`API key`"
+- SCOPE_URL = "`Scope URL`"
+- TOKEN_URL = "`Token URL`"
