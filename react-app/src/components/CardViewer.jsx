@@ -107,7 +107,7 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
             onChange={() => setShowFavouritesOnly(val => !val)}
             className="w-4 h-4"
           />
-          <label htmlFor="favOnlyToggle" className="text-sm text-gray-700">Show only favourites</label>
+          <label htmlFor="favOnlyToggle" className="text-sm text-gray-700">Favourites only</label>
         </div>
         
         {/* Card & Arrows */}
