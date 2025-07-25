@@ -64,7 +64,7 @@ export default function Favourites() {
         {ads.length === 0 ? (
             <p className="text-center text-gray-600">No favourites yet.</p>
         ) : (
-            <ul className="space-y-4 max-w-4xl mx-auto">
+            <ul className="space-y-4 max-w-4xl mx-auto mt-2">
             {ads.map((ad) => (
                 <li
                 key={ad["Ad ID"]}
@@ -84,13 +84,13 @@ export default function Favourites() {
                     onClick={() => handleUnfavourite(ad["Ad ID"])}
                     className="w-full px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
                     >
-                    Remove
+                    Unfavourite
                     </button>
                     <button
                     onClick={() => handleRemoveAndExclude(ad["Ad ID"])}
                     className="w-full px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
                     >
-                    Remove & Exclude
+                    Unfavourite & Exclude
                     </button>
                 </div>
                 </li>

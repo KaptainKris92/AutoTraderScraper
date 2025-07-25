@@ -39,8 +39,6 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
 
   const cardRef = useRef(null);
 
-
-
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-start pt-2 pb-14">          
 
@@ -68,16 +66,13 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
         </>
 
         {/* Tap zones for mobile (left/right) */}      
-        <div className="absolute top-0 left-0 h-full w-[15%] z-10" onClick={prev}></div>     
-        <div className="absolute top-0 right-0 h-full w-[15%] z-10" onClick={next}></div>        
-
+        <div className="absolute top-0 left-0 h-full w-[15%] z-10 block sm:hidden" onClick={prev}></div>     
+        <div className="absolute top-0 right-0 h-full w-[15%] z-10 block sm:hidden" onClick={next}></div>        
         <div><AdCard ad={currentAd} /></div>        
+      </div>      
 
-      </div>
-      
-
-      {/* Bottom Bar */}
-      <div className="absolute top-[calc(565px+2rem)] w-full flex justify-center space-x-10">
+      {/* Bottom bar with favourite and exclude buttons */}
+      <div className="mt-4 flex justify-center space-x-10">
         <button
           onClick={() => {
             const adId = currentAd["Ad ID"];
@@ -106,7 +101,7 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
     </button>      
 
     {showMOTModal && (
-      <MOTHistoryModal onClose={() => setShowMOTModal(false)} adId={currentAd["Ad ID"]} />
+      <MOTHistoryModal onClose={() => setShowMOTModal(false)} />
     )}
 
     </div>
