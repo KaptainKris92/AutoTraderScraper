@@ -259,6 +259,28 @@ def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
     if to_remove:
         print(f'🗑️ Removing {len(to_remove)} ads no longer listed.')
         delete_ads(to_remove, TABLE_NAME)
+
+        # Remove associated thumbnail and image folders
+        for ad_id in to_remove:
+            thumb_path = Path("thumbnails") / f"{ad_id}.jpg"
+            image_folder = Path("images") / ad_id
+
+            if thumb_path.exists():
+                try:
+                    thumb_path.unlink()
+                    print(f"🗑️ Deleted thumbnail for {ad_id}")
+                except Exception as e:
+                    print(f"⚠️ Could not delete thumbnail for {ad_id}: {e}")
+
+            if image_folder.exists():
+                try:
+                    for file in image_folder.glob("*"):
+                        file.unlink()
+                    image_folder.rmdir()
+                    print(f"🗑️ Deleted image folder for {ad_id}")
+                except Exception as e:
+                    print(f"⚠️ Could not delete image folder for {ad_id}: {e}")
+
     
     if save_to_excel:
         file_path = DATA_DIR / f"cars_{datetime.now().date()}.xlsx"
