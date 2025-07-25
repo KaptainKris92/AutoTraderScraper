@@ -33,3 +33,8 @@ After 1-5 working days, you should receive an e-mail with the variables below. Y
 - MOT_API_KEY = "`API key`"
 - SCOPE_URL = "`Scope URL`"
 - TOKEN_URL = "`Token URL`"
+
+## License
+This project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0).  
+You may use, modify, and share this code for non-commercial purposes only, with proper attribution.
+
