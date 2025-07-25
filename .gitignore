@@ -6,4 +6,5 @@ screenshots
 data
 thumbnails
 data
-__pycache__
+__pycache__/
+*.py[cod]
