@@ -28,6 +28,7 @@ export default function AdCard({ ad }) {
   const [showMOTModal, setShowMOTModal] = useState(false);
   const [boundReg, setBoundReg] = useState(null);
   const [regInput, setRegInput] = useState("");
+  const [thumbnailMissing, setThumbnailMissing] = useState(false);
 
   // Fetch the bound registration number
   const fetchBoundReg = async () => {
@@ -84,7 +85,12 @@ export default function AdCard({ ad }) {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto bg-white rounded-2xl shadow-md overflow-hidden sm:rounded-xl sm:shadow-lg">
+    // Main card container
+    <div
+      className={`mx-auto bg-white rounded-2xl shadow-md overflow-hidden sm:rounded-xl sm:shadow-lg ${
+        thumbnailMissing ? "w-[400px]" : "w-full max-w-md"
+      }`}
+    >
     
       {/* Thumbnail image  + quick reg input */}
       <div className="relative w-full aspect-[4/3] sm:h-80 sm:aspect-auto bg-gray-100">
@@ -92,6 +98,10 @@ export default function AdCard({ ad }) {
         src={`/api/thumbnail/${ad["Ad ID"]}`}
         alt={`Thumbnail for ${ad?.Title || "car"}`}
         className="w-full h-full object-cover"
+        onError={() => {
+          console.log(`Thumbnail for ${ad["Ad ID"]} is missing.`)
+          setThumbnailMissing(true);
+        }}
       />
 
       {/* AutoTrader logo & URL */}
