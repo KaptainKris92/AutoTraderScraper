@@ -296,7 +296,6 @@ def download_thumbnail(ad_id, thumbnail_url, save_dir = 'thumbnails'):
         if response.status_code == 200:
             with open(f'{save_dir}/{ad_id}.jpg', 'wb') as f:
                 f.write(response.content)
-            print(f'✅ Saved thumbnail for {ad_id}')
         else:
             print(f'❌ Failed to download image for {ad_id}, status {response.status_code}')     
     except Exception as e:
