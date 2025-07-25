@@ -7,6 +7,9 @@ Pulls listings according to a search criteria embedded in a link.
 - React
 - Tailwind CSS 
 
+Set up ngrok account
+**TODO: Add ability to enter ngrok credentials, then automatically configure ngrok for user**
+
 Python packages can be installed by running `pip install -r requirements.txt`
 Node.js packages can be installed by navigating to `react-app` folder, opening terminal, and running `npm install`
 

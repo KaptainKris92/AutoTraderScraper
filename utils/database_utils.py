@@ -3,11 +3,12 @@ import sqlite3
 import json
 from datetime import datetime
 import pandas as pd
+from pathlib import Path
 
 
 # SQLite location
-DATA_DIR = 'data'
-DB_PATH = os.path.join(DATA_DIR, 'autotrader_listings.db')
+DATA_DIR = Path('data')
+DB_PATH = DATA_DIR / 'autotrader_listings.db'
 
 # Create dir if doesn't exist
 os.makedirs(DATA_DIR, exist_ok = True)
@@ -91,6 +92,12 @@ def load_ads(table = 'ads'):
         df = df.fillna("").replace({float("nan"): ""})
         return df.to_dict(orient='records')
     
+def get_saved_ad_ids(table_name = 'ads'):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT `Ad ID`, `Ad URL` FROM {table_name}")
+        return cursor.fetchall()
+    
 def save_mot_history(reg, data, ad_id = None, table_name = 'mot_history'):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
@@ -115,6 +122,15 @@ def get_mot_histories(ad_id = None, table_name = 'mot_history'):
             for row in cursor.fetchall()
         ]
         
+def delete_ads(ids_to_remove, table_name = 'ads'):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.executemany(
+            f'DELETE FROM {table_name} WHERE "Ad ID" = ?',
+            [(ad_id,) for ad_id in ids_to_remove]
+        )
+        conn.commit()
+                
 def delete_mot_history(reg, table_name = 'mot_history'):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
@@ -122,6 +138,9 @@ def delete_mot_history(reg, table_name = 'mot_history'):
         conn.commit()
         
 def bind_mot_to_ad(reg, ad_id, table_name = 'mot_history'):
+    '''
+    Returns: ad_id, ad_url
+    '''
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         if ad_id is None:
@@ -129,7 +148,7 @@ def bind_mot_to_ad(reg, ad_id, table_name = 'mot_history'):
         else:
             cursor.execute(f"UPDATE {table_name} SET ad_id = ? WHERE registration = ?", (ad_id, reg.upper()))
         conn.commit()
-
+        
 if __name__ == "__main__":
     # create_ads_table()
     # insert_test_ad()

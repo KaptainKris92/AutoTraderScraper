@@ -18,17 +18,17 @@ import requests
 from pathlib import Path
 
 # Database functions
-from utils.database_utils import create_ads_table, check_ad_id_exists, save_to_sql
+from utils.database_utils import create_ads_table, check_ad_id_exists, save_to_sql, get_saved_ad_ids, delete_ads, load_ads
 from utils.general_utils import extract_post_date
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = 3 # Silence Tensorflow warnings: 0 = all logs, 1 = filter INFO, 2 = filter WARNING, 3 = filter ERROR
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # Silence Tensorflow warnings: 0 = all logs, 1 = filter INFO, 2 = filter WARNING, 3 = filter ERROR
 
 # With filters: Under £5k, within 50 miles of Caerphilly, Automatic transmission, <125k miles
 # TODO: Make this modifiable
 AUTOTRADER_URL = "https://www.autotrader.co.uk/car-search?maximum-mileage=125000&postcode=CF83%208TF&price-to=5000&radius=50&sort=relevance&transmission=Automatic"  
 
-DATA_DIR = "data"
-MAX_SCROLLS = 1 
+DATA_DIR = Path('data')
+DEFAULT_MAX_SCROLLS = 1 # Maybe default should be all ads possible?
 TABLE_NAME = 'ads'
 
 def reject_cookies(driver, timeout=15):
@@ -69,6 +69,8 @@ def create_stealth_driver(headless=True, url = AUTOTRADER_URL):
     # Suppress log warnings etc.
     options.add_argument("--log-level-3") # Suppresses all but fatal logs
     options.add_argument("--disable-logging")
+    options.add_argument("--disable-software-rasterizer")    
+    options.add_argument("--disable-features=UseModernMediaControls,SyncService")
     
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
@@ -86,11 +88,25 @@ def create_stealth_driver(headless=True, url = AUTOTRADER_URL):
     
     return driver
 
-def scrape_autotrader(save_to_excel = True):
-    os.makedirs(DATA_DIR, exist_ok=True)
+def extract_highest_res_images(ad_urls):
+    pattern = re.compile(r"/w(\d+)/([a-f0-9]+)\.jpg")
+    best_images = {}
+
+    for url in ad_urls:
+        match = pattern.search(url)
+        if match:
+            width = int(match.group(1))
+            key = match.group(2)  # hash name of image
+            if key not in best_images or width > best_images[key][0]:
+                best_images[key] = (width, url)
+    
+    return [info[1] for info in best_images.values()]
+
+def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
+    DATA_DIR.mkdir(parents=True, exist_ok=True)    
     driver = create_stealth_driver(headless = True, url = AUTOTRADER_URL)    
     reject_cookies(driver)
-    time.sleep(5) # Give the page time to render listings
+    time.sleep(3) # Give the page time to render listings
 
     # Wait until at least one car listing is loaded
     try:
@@ -105,18 +121,17 @@ def scrape_autotrader(save_to_excel = True):
         return
 
     # Scroll to bottom until no new content appears (stop at MAX_SCROLLS)
-    scroll_pause_time = 2    
-    last_height = driver.execute_script("return document.body.scrollHeight")
-
-    for i in range(MAX_SCROLLS):
+    scroll_pause_time = 2.5
+    for i in range(max_scrolls):
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(scroll_pause_time)
-        new_height = driver.execute_script("return document.body.scrollHeight")
         
-        if new_height == last_height:
-            print(f"🔄 Stopped scrolling at scroll #{i+1}, page fully loaded.")
+        prev_count = len(driver.find_elements(By.CSS_SELECTOR, "div[data-testid='advertCard']"))
+        time.sleep(scroll_pause_time)
+        new_count = len(driver.find_elements(By.CSS_SELECTOR, "div[data-testid='advertCard']"))
+
+        if new_count == prev_count:
+            print(f"🔄 No new listings detected after scroll #{i+1}. Stopping.")
             break
-        last_height = new_height
     else:
         print("⚠️ Max scrolls reached, may still be incomplete.")
 
@@ -236,8 +251,40 @@ def scrape_autotrader(save_to_excel = True):
     df = pd.DataFrame(car_data)
     df = df.drop_duplicates(subset = 'Ad ID')
     
+    # Remove any ads no longer listed
+    live_ad_ids = set(df['Ad ID'])
+    saved_ads = load_ads(TABLE_NAME)
+    saved_ad_ids = set(ad['Ad ID'] for ad in saved_ads)
+    to_remove = saved_ad_ids - live_ad_ids
+    
+    if to_remove:
+        print(f'🗑️ Removing {len(to_remove)} ads no longer listed.')
+        delete_ads(to_remove, TABLE_NAME)
+
+        # Remove associated thumbnail and image folders
+        for ad_id in to_remove:
+            thumb_path = Path("thumbnails") / f"{ad_id}.jpg"
+            image_folder = Path("images") / ad_id
+
+            if thumb_path.exists():
+                try:
+                    thumb_path.unlink()
+                    print(f"🗑️ Deleted thumbnail for {ad_id}")
+                except Exception as e:
+                    print(f"⚠️ Could not delete thumbnail for {ad_id}: {e}")
+
+            if image_folder.exists():
+                try:
+                    for file in image_folder.glob("*"):
+                        file.unlink()
+                    image_folder.rmdir()
+                    print(f"🗑️ Deleted image folder for {ad_id}")
+                except Exception as e:
+                    print(f"⚠️ Could not delete image folder for {ad_id}: {e}")
+
+    
     if save_to_excel:
-        file_path = os.path.join(DATA_DIR, f"cars_{datetime.now().date()}.xlsx")
+        file_path = DATA_DIR / f"cars_{datetime.now().date()}.xlsx"
         df.to_excel(file_path, index=False)
         print(f"Saved {len(df)} listings to {file_path}")
     return df
@@ -249,11 +296,37 @@ def download_thumbnail(ad_id, thumbnail_url, save_dir = 'thumbnails'):
         if response.status_code == 200:
             with open(f'{save_dir}/{ad_id}.jpg', 'wb') as f:
                 f.write(response.content)
-            print(f'✅ Saved thumbnail for {ad_id}')
         else:
             print(f'❌ Failed to download image for {ad_id}, status {response.status_code}')     
     except Exception as e:
         print(f"❌ Error downloading thumbnail for {ad_id}: {e}")
+        
+def download_missing_images(limit = None):
+    ad_ids = get_saved_ad_ids()
+    
+    # Maybe sort according to time saved
+    if limit:
+        ad_ids = ad_ids[:limit]
+            
+    for ad_id, ad_url in ad_ids:
+        
+        if not ad_url or not ad_id:
+            print(f'⚠️ Skipping entry with missing ad_id or ad_url')
+            continue
+    
+        folder = Path("images") / ad_id
+        
+        if (folder / "01.jpg").exists():
+            print(f'✅ Images already downloaded for {ad_id}. Skipping.')
+            continue
+        
+        print(f'Downloading images for {ad_id}')
+        try:
+            download_pictures(ad_id, ad_url)
+        except Exception as e:
+            print(f'❌ Error downloading for {ad_id}: {e}')
+            with open('failed_downloads.log', 'a', encoding='utf-8') as log:
+                log.write(f'{ad_id}, {ad_url}\n')
 
 def download_pictures(ad_id, ad_url):
     folder = Path("images") / ad_id
@@ -262,9 +335,9 @@ def download_pictures(ad_id, ad_url):
     reject_cookies(driver)
 
     try:        
-        time.sleep(2)
+        time.sleep(1)
 
-        # ✅ Click a thumbnail instead of the 'View gallery' button
+        # Click a thumbnail on ad page instead of the 'View gallery' button
         try:
             thumb = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-testid^='open-carousel']"))
@@ -283,7 +356,7 @@ def download_pictures(ad_id, ad_url):
             EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='dialog'] img"))
         )
         
-        time.sleep(2)  # Ensure images fully render
+        time.sleep(1)  # Ensure images fully render
 
     except Exception as e:
         print(f"⚠️ Could not open gallery for {ad_id}: {e}")
@@ -293,12 +366,15 @@ def download_pictures(ad_id, ad_url):
     # ✅ Extract images
     try:
         image_elements = driver.find_elements(By.CSS_SELECTOR, "div[role='dialog'] picture source")
-
-        img_urls = list({
-            elem.get_attribute("srcset") or elem.get_attribute("src")
-            for elem in image_elements
-            if (elem.get_attribute("srcset") or elem.get_attribute("src")) and "media" in (elem.get_attribute("srcset") or elem.get_attribute("src"))
-        })
+        
+        srcset_urls = []
+        for elem in image_elements:
+            srcset = elem.get_attribute('srcset')     
+            if srcset:
+                urls = [s.strip().split(" ")[0] for s in srcset.split(",") if "media" in s]
+                srcset_urls.extend(urls)
+                
+        img_urls = extract_highest_res_images(srcset_urls)
 
         if not img_urls:
             print("⚠️ No modal image URLs found, falling back to thumbnails.")
@@ -327,31 +403,22 @@ def download_pictures(ad_id, ad_url):
 
 
 if __name__ == "__main__":
-    create_ads_table(TABLE_NAME)
-    scraped_df = scrape_autotrader()    
-    save_to_sql(scraped_df, TABLE_NAME)
-    print(f'{len(scraped_df)} new listings saved to database')
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--scrape", action="store_true", help="Scrape new ads from AutoTrader")
+    parser.add_argument("--download", action="store_true", help="Download images for saved ads")
+    parser.add_argument("--limit", type=int, default=None, help="Limit number of missing images to download (generally just used for debugging)")
+    parser.add_argument("--max-scrolls", type=int, default = DEFAULT_MAX_SCROLLS, help = "How many times to scroll during scraping. (Alternatively, use `--scroll-until-end`)")
+    parser.add_argument("--scroll-until-end", action="store_true", help="Keep scrolling until all ads are loaded.")
     
-    # plate_sets = []
-    # for _, row in scraped_df.iterrows():
-    #     ad_id = row['Ad ID']
-    #     ad_url = row['Ad URL']
-    #     download_pictures(ad_id, ad_url)
-    #     folder = f'images/{ad_id}'
-    #     reader = easyocr.Reader(['en'], gpu=True)
-    #     all_texts = []
-    #     for filename in os.listdir(folder):
-    #         if filename.lower().endswith((".jpg", ".jpeg", ".png")):
-    #             img_path = os.path.join(folder, filename)
-    #             try:
-    #                 results = reader.readtext(img_path, detail=0, paragraph=False)
-    #                 all_texts.extend(results)
-    #             except Exception as e:
-    #                 print(f"Failed to process {filename}: {e}")
-    #     plate_set = clean_and_match_plates(all_texts)
-    #     plate_sets.append(', '.join(plate_set) if plate_set else "")
+    args = parser.parse_args()
 
-    # scraped_df['Possible Plates'] = plate_sets
-    # scraped_df.to_excel(os.path.join(DATA_DIR, f"cars_with_plates_{datetime.now().date()}.xlsx"), index=False)
-    
+    if args.scrape:
+        create_ads_table()
+        max_scrolls = 9999 if args.scroll_until_end else args.max_scrolls # 9999 should be sufficient.
+        df = scrape_autotrader(max_scrolls = args.max_scrolls)
+        save_to_sql(df, TABLE_NAME)
+    if args.download:
+        download_missing_images(limit=args.limit)    
+            
     
