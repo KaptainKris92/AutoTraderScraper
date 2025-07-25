@@ -48,19 +48,23 @@ export default function AdCard({ ad }) {
 
   // Fetch the bound registration number
   const fetchBoundReg = async () => {
-    const res = await fetch(`/api/mot_history?ad_id=${ad["Ad ID"]}`);
-    const data = await res.json();
-    if (data.length > 0) {
-      setBoundReg(data[0].registration);
-    } else {
-      setBoundReg(null);
+    try {
+      const res = await fetch(`/api/mot_history?ad_id=${ad["Ad ID"]}`);
+      if (!res.ok) {
+        throw new Error(`Server responded with status ${res.status}`);
+      }
+      const data = await res.json();
+      if (data.length > 0) {
+        setBoundReg(data[0].registration);
+      } else {
+        setBoundReg(null);
+      }
+    } catch (err) {
+      console.error("❌ Failed to fetch bound reg:", err);
+      setBoundReg(null); // fallback
     }
   };
 
-  // Show reg number bound to ad
-  useEffect(() => {
-    fetchBoundReg();
-  }, [ad]);
 
 
   // Unbinding reg numbers

@@ -303,7 +303,7 @@ def download_thumbnail(ad_id, thumbnail_url, save_dir = 'thumbnails'):
         
 def download_missing_images(limit = None):
     ad_ids = get_saved_ad_ids()
-    
+
     # Maybe sort according to time saved
     if limit:
         ad_ids = ad_ids[:limit]
@@ -415,8 +415,8 @@ if __name__ == "__main__":
 
     if args.scrape:
         create_ads_table()
-        max_scrolls = 9999 if args.scroll_until_end else args.max_scrolls # 9999 should be sufficient.
-        df = scrape_autotrader(max_scrolls = args.max_scrolls)
+        max_scrolls = 999999 if args.scroll_until_end else args.max_scrolls 
+        df = scrape_autotrader(max_scrolls = max_scrolls)
         save_to_sql(df, TABLE_NAME)
     if args.download:
         download_missing_images(limit=args.limit)    

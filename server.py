@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from utils.database_utils import create_ads_table, update_flag, load_ads, save_mot_history, get_mot_histories, delete_mot_history, bind_mot_to_ad
+from utils.database_utils import create_ads_table, update_flag, load_ads, save_mot_history, get_mot_histories, delete_mot_history, bind_mot_to_ad, ensure_tables_exist
 from utils.mot_history import get_mot_history
 from pathlib import Path
 from scraper import download_pictures
@@ -7,6 +7,7 @@ from scraper import download_pictures
 app = Flask(__name__)
 TABLE_NAME = 'ads'
 THUMBNAIL_DIR = Path('thumbnails')
+ensure_tables_exist()
 
 @app.route('/api/fav_exc', methods = ['POST'])
 def favourite_or_exclude_ad():
@@ -42,7 +43,7 @@ def get_ads():
     
     if not ads:
         return jsonify({"message": "No ads found", "data": []}), 200
-    return jsonify(ads)
+    return jsonify({ "data": ads or [], "message": "ok"})
 
 @app.route('/api/thumbnail/<ad_id>', methods = ['GET'])
 def serve_thumbnail(ad_id):
@@ -87,15 +88,21 @@ def save_mot_entry():
 # Get MOT History from local database
 @app.route('/api/mot_history', methods = ['GET'])
 def get_all_mot():
-    ad_id = request.args.get('ad_id')
-    if ad_id == "" or ad_id is None:
-        ad_id = None
-        print('Fetching all MOT histories')
-    else:
-        print(f'Fetching MOT history for ad_id {ad_id}')
+    try:
+        ad_id = request.args.get('ad_id')
+        if not ad_id:
+            ad_id = None
+            print('Fetching all MOT histories')
+        else:
+            print(f'Fetching MOT history for ad_id {ad_id}')
+
+        histories = get_mot_histories(ad_id)
+        return jsonify(histories)
     
-    histories = get_mot_histories(ad_id)
-    return jsonify(histories)
+    except Exception as e:
+        print(f'❌ Error fetching MOT history: {e}')
+        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
+
 
 @app.route('/api/mot_history/bind', methods = ['POST'])
 def bind_mot_entry():

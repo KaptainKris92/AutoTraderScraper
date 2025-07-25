@@ -16,10 +16,12 @@ export default function Home() {
     const [sortDirection, setSortDirection] = useState(defaultDirection);
 
     useEffect(() => {
-        fetch("api/ads")
+        fetch("/api/ads")
         .then((res) => res.json())
         .then((data) => {
-            const sorted = sortAds(data, sortBy, sortDirection);        
+            const adsArray = Array.isArray(data) ? data : data.data;
+            console.log("Fetched ads array:", adsArray);
+            const sorted = sortAds(adsArray, sortBy, sortDirection);
             setAds(sorted);
         })
         .catch((err) => console.error("Failed to load ads:", err));
