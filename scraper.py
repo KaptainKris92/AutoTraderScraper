@@ -69,6 +69,8 @@ def create_stealth_driver(headless=True, url = AUTOTRADER_URL):
     # Suppress log warnings etc.
     options.add_argument("--log-level-3") # Suppresses all but fatal logs
     options.add_argument("--disable-logging")
+    options.add_argument("--disable-software-rasterizer")    
+    options.add_argument("--disable-features=UseModernMediaControls,SyncService")
     
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
@@ -119,18 +121,17 @@ def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
         return
 
     # Scroll to bottom until no new content appears (stop at MAX_SCROLLS)
-    scroll_pause_time = 1    
-    last_height = driver.execute_script("return document.body.scrollHeight")
-
+    scroll_pause_time = 2.5
     for i in range(max_scrolls):
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(scroll_pause_time)
-        new_height = driver.execute_script("return document.body.scrollHeight")
         
-        if new_height == last_height:
-            print(f"🔄 Stopped scrolling at scroll #{i+1}, page fully loaded.")
+        prev_count = len(driver.find_elements(By.CSS_SELECTOR, "div[data-testid='advertCard']"))
+        time.sleep(scroll_pause_time)
+        new_count = len(driver.find_elements(By.CSS_SELECTOR, "div[data-testid='advertCard']"))
+
+        if new_count == prev_count:
+            print(f"🔄 No new listings detected after scroll #{i+1}. Stopping.")
             break
-        last_height = new_height
     else:
         print("⚠️ Max scrolls reached, may still be incomplete.")
 
