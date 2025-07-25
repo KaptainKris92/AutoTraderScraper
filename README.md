@@ -18,7 +18,7 @@ Run `py scraper.py`. This will update the database and thumbnail images by scrap
 
 Run `py server.py`. This is needed for routing to the database via Flask.
 
-In a separate terminal within the `react-app` folder, run `npm run dev:auto`. This will grant you access to the UI either through http://localhost:5173/, http://1992.168.4.29:5173, or a random ngrok link.
+In a separate terminal within the `react-app` folder, run `npm run dev:auto`. This will grant you access to the UI either through http://localhost:5173/, http://192.168.4.29:5173, or a randomly-generated ngrok link.
 
 ## MOT History
 
