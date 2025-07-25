@@ -353,7 +353,6 @@ def download_pictures(ad_id, ad_url):
                 srcset_urls.extend(urls)
                 
         img_urls = extract_highest_res_images(srcset_urls)
-        print(img_urls)
 
         if not img_urls:
             print("⚠️ No modal image URLs found, falling back to thumbnails.")

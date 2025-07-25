@@ -42,6 +42,10 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
 
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Only listen if no modals are open
+      const modalOpen = document.querySelector(".modal-open");
+      if (modalOpen) return;
+
       const adId = currentAd?.["Ad ID"];
       if (!adId) return;
 
@@ -62,16 +66,14 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
           break;
         case "Escape":
           setShowMOTModal(false);
-          // Add `setShowGallery(false)` or `setShowBindModal(false)` here too if needed
-          break;
-        default:
           break;
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentAd, updateFavourite, updateExclude, next, prev]);
+  }, [currentAd, updateFavourite, updateExclude]);
+
 
 
   const cardRef = useRef(null);

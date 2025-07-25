@@ -36,10 +36,11 @@ export default function GalleryViewer({ adId, onClose, onImageChange }) {
         const handleKeyDown = (e) => {
         if (e.key === "ArrowLeft") handlePrev();
         if (e.key === "ArrowRight") handleNext();
+        if (e.key === "Escape") onClose();
         };
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [currentIndex, images]);
+    }, [currentIndex, images, onClose]);
 
     // Mobile swipe support
     useEffect(() => {
@@ -95,7 +96,7 @@ export default function GalleryViewer({ adId, onClose, onImageChange }) {
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex flex-col items-center justify-center">
+        <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex flex-col items-center justify-center modal-open">
         {loading ? (
             <div className="text-white text-lg animate-pulse">Loading images...</div>
         ) : images.length === 0 ? (

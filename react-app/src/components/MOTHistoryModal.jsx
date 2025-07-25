@@ -107,7 +107,7 @@ export default function MOTHistoryModal({ onClose, adId, initialReg }) {
     }
 
     return (
-        <div className="fixed inset-0 bg-white z-50 flex flex-col p-4 space-y-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-white z-50 flex flex-col p-4 space-y-4 overflow-y-auto modal-open">
         
         {/* Header & X */}
         <div className="flex justify-between items-center mb-2">            
