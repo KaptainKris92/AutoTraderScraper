@@ -7,6 +7,9 @@ Pulls listings according to a search criteria embedded in a link.
 - React
 - Tailwind CSS 
 
+Set up ngrok account
+**TODO: Add ability to enter ngrok credentials, then automatically configure ngrok for user**
+
 Python packages can be installed by running `pip install -r requirements.txt`
 Node.js packages can be installed by navigating to `react-app` folder, opening terminal, and running `npm install`
 
@@ -30,3 +33,10 @@ After 1-5 working days, you should receive an e-mail with the variables below. Y
 - MOT_API_KEY = "`API key`"
 - SCOPE_URL = "`Scope URL`"
 - TOKEN_URL = "`Token URL`"
+
+## License
+This project is licensed under the [Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)](https://creativecommons.org/licenses/by-nc/4.0/).
+
+You may use, modify, and share this code for **non-commercial purposes only**, with proper attribution.  
+**Commercial use is strictly prohibited without explicit permission.**
+

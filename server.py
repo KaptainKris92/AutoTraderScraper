@@ -1,11 +1,12 @@
 from flask import Flask, request, jsonify, send_from_directory
 from utils.database_utils import create_ads_table, update_flag, load_ads, save_mot_history, get_mot_histories, delete_mot_history, bind_mot_to_ad
 from utils.mot_history import get_mot_history
-
+from pathlib import Path
+from scraper import download_pictures
 
 app = Flask(__name__)
 TABLE_NAME = 'ads'
-THUMBNAIL_DIR = 'thumbnails'
+THUMBNAIL_DIR = Path('thumbnails')
 
 @app.route('/api/fav_exc', methods = ['POST'])
 def favourite_or_exclude_ad():
@@ -38,12 +39,21 @@ def favourite_or_exclude_ad():
 @app.route('/api/ads', methods = ['GET'])
 def get_ads():
     ads = load_ads('ads')
+    
+    if not ads:
+        return jsonify({"message": "No ads found", "data": []}), 200
     return jsonify(ads)
 
 @app.route('/api/thumbnail/<ad_id>', methods = ['GET'])
 def serve_thumbnail(ad_id):
     filename = f'{ad_id}.jpg'
     return send_from_directory(THUMBNAIL_DIR, filename)
+
+@app.route('/api/gallery-image/<ad_id>/<image_index>', methods=['GET', 'HEAD'])
+def serve_gallery_image(ad_id, image_index):
+    filename = f"{str(image_index).zfill(2)}.jpg"
+    folder = Path("images") / ad_id
+    return send_from_directory(folder, filename)
 
 # Get new MOT History through API
 @app.route('/api/mot_history/query', methods = ['GET'])
@@ -82,7 +92,7 @@ def get_all_mot():
         ad_id = None
         print('Fetching all MOT histories')
     else:
-        print('Fetching MOT history for ad_id {ad_id}')
+        print(f'Fetching MOT history for ad_id {ad_id}')
     
     histories = get_mot_histories(ad_id)
     return jsonify(histories)
@@ -107,6 +117,31 @@ def bind_mot_entry():
 def delete_mot_entry(reg):
     delete_mot_history(reg)
     return jsonify({'status': 'deleted'})
+
+@app.route('/api/download-pictures', methods = ['POST'])
+def api_download_pictures():
+    data = request.get_json()
+    ad_id = data.get('ad_id')
+    ad_url = data.get('ad_url')
+    
+    if isinstance(ad_id, list):
+        ad_id = ad_id[0]
+    if isinstance(ad_url, list):
+        ad_url = ad_url[0]
+        
+    try:
+        download_pictures(ad_id, ad_url)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
+@app.route('/api/image-count/<ad_id>')
+def image_count(ad_id):
+    folder = Path("images") / ad_id
+    if not folder.exists():
+        return jsonify({"count": 0})
+    count = len(list(folder.glob("*.jpg")))
+    return jsonify({"count": count})
 
 if __name__ == '__main__':
     create_ads_table(TABLE_NAME)
