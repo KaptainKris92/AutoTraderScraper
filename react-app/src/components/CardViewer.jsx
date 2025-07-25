@@ -69,8 +69,7 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
         <div className="absolute top-0 left-0 h-full w-[15%] z-10 block sm:hidden" onClick={prev}></div>     
         <div className="absolute top-0 right-0 h-full w-[15%] z-10 block sm:hidden" onClick={next}></div>        
         <div><AdCard ad={currentAd} /></div>        
-      </div>
-      
+      </div>      
 
       {/* Bottom bar with favourite and exclude buttons */}
       <div className="mt-4 flex justify-center space-x-10">
