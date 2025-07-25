@@ -1,4 +1,4 @@
-import { useState, useRef} from "react";
+import { useState, useRef, useEffect } from "react";
 import AdCard from "./AdCard";
 import { FaHeart, FaTimes, FaCar } from "react-icons/fa";
 import { useDrag } from '@use-gesture/react'; // For mobile swiping
@@ -35,7 +35,44 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
       // if (swipeY === 1) updateExclude(currentAd["Ad ID"]); // Down
     },
     { axis: undefined, swipe: { velocity: 0.2, distance: 30 }}
-  )
+  );
+
+  // Keyboard triggers
+  
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const adId = currentAd?.["Ad ID"];
+      if (!adId) return;
+
+      switch (e.key) {
+        case "ArrowRight":
+          next();
+          break;
+        case "ArrowLeft":
+          prev();
+          break;
+        case "f":
+        case "F":
+          updateFavourite(adId, currentAd.Favourited === 1 ? 0 : 1);
+          break;
+        case "e":
+        case "E":
+          updateExclude(adId);
+          break;
+        case "Escape":
+          setShowMOTModal(false);
+          // Add `setShowGallery(false)` or `setShowBindModal(false)` here too if needed
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentAd, updateFavourite, updateExclude, next, prev]);
+
 
   const cardRef = useRef(null);
 

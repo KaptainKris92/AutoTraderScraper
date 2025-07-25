@@ -86,11 +86,25 @@ def create_stealth_driver(headless=True, url = AUTOTRADER_URL):
     
     return driver
 
+def extract_highest_res_images(ad_urls):
+    pattern = re.compile(r"/w(\d+)/([a-f0-9]+)\.jpg")
+    best_images = {}
+
+    for url in ad_urls:
+        match = pattern.search(url)
+        if match:
+            width = int(match.group(1))
+            key = match.group(2)  # hash name of image
+            if key not in best_images or width > best_images[key][0]:
+                best_images[key] = (width, url)
+    
+    return [info[1] for info in best_images.values()]
+
 def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
     DATA_DIR.mkdir(parents=True, exist_ok=True)    
     driver = create_stealth_driver(headless = True, url = AUTOTRADER_URL)    
     reject_cookies(driver)
-    time.sleep(5) # Give the page time to render listings
+    time.sleep(3) # Give the page time to render listings
 
     # Wait until at least one car listing is loaded
     try:
@@ -105,7 +119,7 @@ def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
         return
 
     # Scroll to bottom until no new content appears (stop at MAX_SCROLLS)
-    scroll_pause_time = 2    
+    scroll_pause_time = 1    
     last_height = driver.execute_script("return document.body.scrollHeight")
 
     for i in range(max_scrolls):
@@ -299,9 +313,9 @@ def download_pictures(ad_id, ad_url):
     reject_cookies(driver)
 
     try:        
-        time.sleep(2)
+        time.sleep(1)
 
-        # ✅ Click a thumbnail instead of the 'View gallery' button
+        # Click a thumbnail on ad page instead of the 'View gallery' button
         try:
             thumb = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-testid^='open-carousel']"))
@@ -320,7 +334,7 @@ def download_pictures(ad_id, ad_url):
             EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='dialog'] img"))
         )
         
-        time.sleep(2)  # Ensure images fully render
+        time.sleep(1)  # Ensure images fully render
 
     except Exception as e:
         print(f"⚠️ Could not open gallery for {ad_id}: {e}")
@@ -330,12 +344,16 @@ def download_pictures(ad_id, ad_url):
     # ✅ Extract images
     try:
         image_elements = driver.find_elements(By.CSS_SELECTOR, "div[role='dialog'] picture source")
-
-        img_urls = list({
-            elem.get_attribute("srcset") or elem.get_attribute("src")
-            for elem in image_elements
-            if (elem.get_attribute("srcset") or elem.get_attribute("src")) and "media" in (elem.get_attribute("srcset") or elem.get_attribute("src"))
-        })
+        
+        srcset_urls = []
+        for elem in image_elements:
+            srcset = elem.get_attribute('srcset')     
+            if srcset:
+                urls = [s.strip().split(" ")[0] for s in srcset.split(",") if "media" in s]
+                srcset_urls.extend(urls)
+                
+        img_urls = extract_highest_res_images(srcset_urls)
+        print(img_urls)
 
         if not img_urls:
             print("⚠️ No modal image URLs found, falling back to thumbnails.")
