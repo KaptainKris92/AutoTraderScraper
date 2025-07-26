@@ -217,7 +217,7 @@ export default function AdCard({ ad }) {
         }`}
       >
         {/* Thumbnail image  + quick reg input */}
-        <div className="relative w-full aspect-[4/3] sm:h-80 sm:aspect-auto bg-gray-100">
+        <div className="relative w-full aspect-[4/3] bg-gray-100">
           {currentThumb ? (
             <img
               src={currentThumb}
