@@ -112,6 +112,7 @@ def bind_mot_entry():
     
     if not reg:
         return jsonify({'error': 'Missing registration or Ad ID'}), 400
+    print(f"🔗 Binding reg {reg} to ad_id {ad_id}")
     
     # Interpret empty string as NULL
     if ad_id == "":

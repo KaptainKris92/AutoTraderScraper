@@ -38,6 +38,12 @@ export default function AdCard({ ad }) {
     setCurrentThumb(`/api/thumbnail/${ad["Ad ID"]}`);
     setThumbnailMissing(false); // Reset any missing-state
   }, [ad]);
+
+  // Get correct bound reg for each ad
+  useEffect(() => {
+    fetchBoundReg();
+  }, [ad["Ad ID"]]);
+
   
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -64,8 +70,6 @@ export default function AdCard({ ad }) {
       setBoundReg(null); // fallback
     }
   };
-
-
 
   // Unbinding reg numbers
   const handleUnbind = async () => {

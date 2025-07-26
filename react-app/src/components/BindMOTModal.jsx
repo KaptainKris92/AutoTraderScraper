@@ -10,9 +10,10 @@ export default function BindMOTModal({ adId, onClose, onBindSuccess }) {
             setUnboundHistories(data.filter((h) => !h.ad_id)) // Only show unbound MOT histories
         )        
         .catch((err) => console.error("Failed to load MOT histories:", err));
-    }, []);
+    }, [adId]);
 
     const handleBind = async (registration) => {
+        console.log(`Binding ${registration} to ${adId}`)
         await fetch("/api/mot_history/bind", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -26,6 +27,7 @@ export default function BindMOTModal({ adId, onClose, onBindSuccess }) {
             onBindSuccess(registration);
         }
 
+        console.log(`Bound ${registration} to ${adId}`)
         onClose(); // close modal after binding
     };
 
