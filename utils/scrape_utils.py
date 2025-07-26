@@ -149,10 +149,10 @@ def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
         ad_id = hashlib.md5(ad_url.encode('utf-8')).hexdigest()[:10] if ad_url else ""
         
         if check_ad_id_exists(ad_id, TABLE_NAME):
-            print(f'Ad {ad_id} already scraped.') # REMOVE AFTER DEBUGGING
             continue        
         
         if thumbnail_url:
+            print(f'📸 Attempting thumbnail download for {ad_id}')
             download_thumbnail(ad_id, thumbnail_url)
             
         try:
@@ -286,8 +286,10 @@ def download_thumbnail(ad_id, thumbnail_url, save_dir = 'thumbnails'):
     try:
         response = requests.get(thumbnail_url, timeout = 10)
         if response.status_code == 200:
-            with open(f'{save_dir}/{ad_id}.jpg', 'wb') as f:
+            save_path = Path(save_dir) / f"{ad_id}.jpg"
+            with open(save_path, 'wb') as f:
                 f.write(response.content)
+            print(f'✅ Saved thumbnail to {save_path}')
         else:
             print(f'❌ Failed to download image for {ad_id}, status {response.status_code}')     
     except Exception as e:

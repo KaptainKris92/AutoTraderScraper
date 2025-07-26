@@ -52,7 +52,13 @@ def get_ads():
 @app.route('/api/thumbnail/<ad_id>', methods = ['GET'])
 def serve_thumbnail(ad_id):
     filename = f'{ad_id}.jpg'
-    return send_from_directory(THUMBNAIL_DIR, filename)
+    thumb_path = THUMBNAIL_DIR / filename
+    
+    if thumb_path.exists():
+        return send_from_directory(THUMBNAIL_DIR, filename)
+    else:
+        print(f'❌ Thumbnail not found: {thumb_path}')
+        return 'Thumbnail not found', 404
 
 @app.route('/api/gallery-image/<ad_id>/<image_index>', methods=['GET', 'HEAD'])
 def serve_gallery_image(ad_id, image_index):
@@ -106,7 +112,6 @@ def get_all_mot():
     except Exception as e:
         print(f'❌ Error fetching MOT history: {e}')
         return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
-
 
 @app.route('/api/mot_history/bind', methods = ['POST'])
 def bind_mot_entry():
