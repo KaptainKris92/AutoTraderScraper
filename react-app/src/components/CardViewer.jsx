@@ -45,6 +45,12 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
   // Keyboard triggers
   useEffect(() => {
     const handleKeyDown = (e) => {
+      
+      // Ignore key events if focused on an input or textarea
+      const active = document.activeElement
+      const isTyping = active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")
+      if (isTyping) return;
+
       // Only listen if no modals are open
       const modalOpen = document.querySelector(".modal-open");
       if (modalOpen) return;
