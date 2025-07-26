@@ -1,8 +1,8 @@
 from flask import Flask, request, jsonify, send_from_directory
 from utils.database_utils import create_ads_table, update_flag, load_ads, save_mot_history, get_mot_histories, delete_mot_history, bind_mot_to_ad, ensure_tables_exist
 from utils.mot_history import get_mot_history
+from utils.scrape_utils import download_pictures
 from pathlib import Path
-from scraper import download_pictures
 import threading
 
 app = Flask(__name__)
@@ -12,7 +12,6 @@ ensure_tables_exist()
 
 # In-memory progress tracker for downloading images
 download_status = {} 
-
 
 @app.route('/api/fav_exc', methods = ['POST'])
 def favourite_or_exclude_ad():
