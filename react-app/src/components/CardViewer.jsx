@@ -182,7 +182,7 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
 
       <button
         onClick={() => setShowMOTModal(true)}
-        className="fixed bottom-4 right-4 z-50 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg"
+        className="fixed bottom-2 right-5 z-50 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg"
         title="MOT History"
       >
         <FaCar className="text-xl" />

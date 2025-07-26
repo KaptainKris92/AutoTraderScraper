@@ -19,7 +19,7 @@ function parseRegYear(reg) {
 
 export default function MOTHistoryModal({ onClose, adId, initialReg }) {
     useModalHistory(onClose);
-    
+
     const [regInput, setRegInput] = useState("");
     const [motHistories, setMotHistories] = useState([]);        
     const [regInputFilter, setRegInputFilter] = useState("");           
@@ -31,7 +31,7 @@ export default function MOTHistoryModal({ onClose, adId, initialReg }) {
     
 
     // Filter options: 'all', 'bound', 'unbound'
-    const [filter, setFilter] = useState('all');
+    const [filter, setFilter] = useState('unbound');
     const [sort, setSort] = useState('alpha'); // or 'year'
 
     const filtered = motHistories.filter(h => {
@@ -195,7 +195,7 @@ export default function MOTHistoryModal({ onClose, adId, initialReg }) {
                         </div>
 
                         {/* Reg Selector */}
-                        <div className="overflow-x-auto whitespace-nowrap gap-2 mb-4 flex">
+                        <div className="grid grid-cols-4 sm:grid-cols-3 md:grid-cols-10 gap-2 mb-4">
                             {sorted
                                 .filter((entry) => entry.registration.includes(regInputFilter))
                                 .map((entry, idx) => (
