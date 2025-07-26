@@ -16,8 +16,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium_stealth import stealth
 
 # Database functions
-from utils.database_utils import check_ad_id_exists, get_saved_ad_ids, delete_ads, load_ads
-from utils.general_utils import extract_post_date
+from database_utils import check_ad_id_exists, get_saved_ad_ids, delete_ads, load_ads
+from general_utils import extract_post_date
 
 
 # TODO: Avoid needing these parameters here. Add to scraper.py instead, or when implementing changing search filters
@@ -422,3 +422,103 @@ def download_pictures(ad_id, ad_url, progress_callback = None):
 
     driver.quit()
     print(f"✅ Downloaded {len(img_urls)} images for {ad_id}")
+    
+def check_caz(registration="FL56DPZ"):    
+    driver = create_stealth_driver(headless = True, url = "https://multiple-vehiclecheck-pay.drive-clean-air-zone.service.gov.uk/what_would_you_like_to_do")
+
+    try:
+        wait = WebDriverWait(driver, 15)
+        driver.get("https://multiple-vehiclecheck-pay.drive-clean-air-zone.service.gov.uk/what_would_you_like_to_do")
+        time.sleep(2)
+        
+        # Step 1: Choose "Check a vehicle" and Continue
+        print('Page 1')
+        try:            
+            # print('Finding "Check a vehicle" radio button...')                        
+            check_vehicle_label = wait.until(
+                EC.element_to_be_clickable((By.XPATH, "//label[strong[text()='Check a vehicle']]"))
+            )
+            check_vehicle_label.click()
+            # print('✔ Selected "Check a vehicle".')
+        except Exception as e:
+            # print("❌ Could not find or click 'check-a-vehicle'")
+            # with open("debug_page.html", "w", encoding="utf-8") as f:
+            #     f.write(driver.page_source)
+            raise e
+        
+        try:
+            # print('Finding "Continue" button...')
+            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input[type='submit']"))).click()
+            # print('✔ Clicked "Continue".')
+        except Exception as e:
+            # print("❌ Could not find or click 'Continue' button")
+            # with open("debug_page.html", "w", encoding="utf-8") as f:
+            #     f.write(driver.page_source)
+            raise e        
+        
+        time.sleep(2)
+        
+        # Step 2: Enter registration number and select 'UK'
+        print('Page 2')
+        try:
+            # print('Trying to enter registration...')
+            wait.until(EC.presence_of_element_located((By.ID, "vrn"))).send_keys(registration)
+            # print('✔ Registration entered. Trying to find "UK" radio button')
+            driver.find_element(By.ID, "registration-country-1").click()  # UK is default
+            # print('✔ "UK" radio button selected. Trying to find "Continue" button')
+            driver.find_element(By.CSS_SELECTOR, "input[type='submit']").click()
+            # print('✔ "Continue" button clicked')
+        except Exception as e:
+            # print("❌ Could not enter reg, select 'UK' or click 'Continue' button")
+            # with open("debug_page.html", "w", encoding="utf-8") as f:
+            #     f.write(driver.page_source)
+            raise e
+        
+        # Step 3: Confirm vehicle details
+        print('Page 3')
+        try:
+            wait.until(EC.presence_of_element_located((By.ID, "confirm_details-1")))
+            # print('Finding "Yes" radio button...')
+            confirm_radio = driver.find_element(By.ID, "confirm_details-1")
+            driver.execute_script("arguments[0].click();", confirm_radio)
+            # print('✔ "Yes" confirmation selected. Finding "Confirm" button.')
+            driver.find_element(By.CSS_SELECTOR, "input[type='submit']").click()
+            # print('✔ "Confirm" button clicked.')
+        except Exception as e:
+            # print("❌ Could not confirm details")
+            # with open("debug_page.html", "w", encoding="utf-8") as f:
+            #     f.write(driver.page_source)
+            raise e       
+        
+        # Step 4: Scrape results table
+        print('Page 4 (Final)')
+        
+        try:
+            wait.until(EC.presence_of_element_located((By.ID, "compliance-table")))
+            rows = driver.find_elements(By.CSS_SELECTOR, "#compliance-table tbody tr")
+
+            results = []
+            for row in rows:
+                cols = row.find_elements(By.TAG_NAME, "td")
+                results.append({
+                    "Zone": cols[0].text.strip(),
+                    "Daily Charge": cols[1].text.strip(),
+                    "Zone Live": cols[2].text.strip(),
+                    "Map URL": cols[3].find_element(By.TAG_NAME, "a").get_attribute("href"),
+                    "Exemptions URL": cols[4].find_element(By.TAG_NAME, "a").get_attribute("href")
+                })                    
+        except Exception as e:
+            print("❌ Could not scrape results table")
+            with open("debug_page.html", "w", encoding="utf-8") as f:
+                f.write(driver.page_source)
+            raise e       
+
+        return results
+
+    finally:
+        driver.quit()
+
+
+if __name__ == '__main__':
+    from pprint import pprint
+    pprint(check_caz())
