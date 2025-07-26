@@ -22,7 +22,8 @@ export default function MOTHistoryModal({ onClose, adId, initialReg }) {
 
     const [regInput, setRegInput] = useState("");
     const [motHistories, setMotHistories] = useState([]);        
-    const [regInputFilter, setRegInputFilter] = useState("");           
+    const [regInputFilter, setRegInputFilter] = useState("");   
+    const [cazResults, setCazResults] = useState([]);
 
     const [activeRegistration, setActiveRegistration] = useState(null);
     const activeHistory = motHistories.find(h => h.registration === activeRegistration);
@@ -77,7 +78,8 @@ export default function MOTHistoryModal({ onClose, adId, initialReg }) {
             // Refresh
             const updated = await fetch("/api/mot_history").then((r) => r.json());
             setMotHistories(updated);
-            setActiveRegistration(regInput.toUpperCase());  // ✅ New line here
+            setActiveRegistration(regInput.toUpperCase());  
+            setCazResults([]); // Clear CAZ when new reg searched
             setRegInput("");
         } catch (err) {
         console.error("❌ MOT search failed:", err);
@@ -202,7 +204,10 @@ export default function MOTHistoryModal({ onClose, adId, initialReg }) {
                                     // Button
                                     <button
                                         key={entry.registration}
-                                        onClick={() => setActiveRegistration(entry.registration)}
+                                        onClick={() => {
+                                            setActiveRegistration(entry.registration);
+                                            setCazResults([]);
+                                        }}
                                         className={`px-3 py-1 rounded text-sm border ${
                                             entry.registration === activeRegistration
                                                 ? "bg-blue-600 text-white border-blue-600"
@@ -323,7 +328,56 @@ export default function MOTHistoryModal({ onClose, adId, initialReg }) {
                     </div>
                 ))}
                 </div>
-            </>
+
+                {/* CAZ Check Button + Result Table */}
+                <div className="mt-6 space-y-3">
+                <button
+                    onClick={async () => {
+                        try {
+                            const res = await fetch(`/api/check-caz?reg=${activeHistory.registration}`);
+                            const data = await res.json();
+                            
+                            console.log("✅ CAZ API response:", data);
+                            
+                            if (data.error) throw new Error(data.error);
+                            if (!Array.isArray(data.zone)) throw new Error("CAZ zones not an array");                        
+                            setCazResults(data.zone);
+                        } catch (err) {
+                            console.error("CAZ check failed:", err);
+                            alert("Failed to check Clean Air Zones for this vehicle.");
+                            setCazResults([]) // Fall back to empty
+                        }
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded"
+                >
+                    Check CAZ Zones
+                </button>
+
+                {Array.isArray(cazResults) && cazResults.length > 0 && (
+                    <div>
+                    <h4 className="font-semibold text-gray-700 mb-1">Clean Air Zone Status</h4>
+                    <table className="table-auto w-full text-sm border border-gray-300">
+                        <thead>
+                        <tr className="bg-gray-100">
+                            <th className="border px-2 py-1 text-left">Zone</th>
+                            <th className="border px-2 py-1 text-left">Daily Charge</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {cazResults.map((zone, idx) => (
+                            <tr key={idx} className={zone["Daily Charge"] !== "No Charge" ? "bg-red-100" : ""}>
+                                <td className="border px-2 py-1">{zone.Zone}</td>
+                                <td className="border px-2 py-1">{zone["Daily Charge"]}</td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                    </div>
+                )}
+                </div>
+
+            </>        
+
             )}
         </div>
         </div>

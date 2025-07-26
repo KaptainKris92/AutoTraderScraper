@@ -16,8 +16,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium_stealth import stealth
 
 # Database functions
-from database_utils import check_ad_id_exists, get_saved_ad_ids, delete_ads, load_ads
-from general_utils import extract_post_date
+from utils.database_utils import check_ad_id_exists, get_saved_ad_ids, delete_ads, load_ads
+from utils.general_utils import extract_post_date
 
 
 # TODO: Avoid needing these parameters here. Add to scraper.py instead, or when implementing changing search filters
@@ -520,5 +520,7 @@ def check_caz(registration="FL56DPZ"):
 
 
 if __name__ == '__main__':
+    from database_utils import check_ad_id_exists, get_saved_ad_ids, delete_ads, load_ads
+    from general_utils import extract_post_date
     from pprint import pprint
     pprint(check_caz())

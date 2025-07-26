@@ -49,10 +49,51 @@ def create_mot_history_table(table_name = 'mot_history'):
                        ''')
         conn.commit()
         
+def create_caz_table(table_name='caz'):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(f'''
+            CREATE TABLE IF NOT EXISTS {table_name} (
+                registration TEXT,
+                zone TEXT,
+                daily_charge TEXT,
+                zone_live TEXT,
+                map_url TEXT,
+                exemptions_url TEXT,
+                created_at TEXT
+            )
+        ''')
+        conn.commit()
+
+# TODO: Rename to 'save_ads_data'        
 def save_to_sql(data, table_name = 'ads'):
     with sqlite3.connect(DB_PATH) as conn:
         df = pd.DataFrame(data)
         df.to_sql(table_name, conn, if_exists = 'append', index = False)        
+        
+def save_caz_data(registration, caz_data, table_name='caz'):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        timestamp = datetime.now().isoformat()
+
+        # Delete existing data for the registration to avoid duplicates
+        cursor.execute(f"DELETE FROM {table_name} WHERE registration = ?", (registration.upper(),))
+
+        for entry in caz_data:
+            cursor.execute(f'''
+                INSERT INTO {table_name} 
+                (registration, zone, daily_charge, zone_live, map_url, exemptions_url, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                registration.upper(),
+                entry.get('Zone'),
+                entry.get('Daily Charge'),
+                entry.get('Zone Live'),
+                entry.get('Map URL'),
+                entry.get('Exemptions URL'),
+                timestamp
+            ))
+        conn.commit()
         
 def check_ad_id_exists(ad_id, table_name = 'ads'):
     with sqlite3.connect(DB_PATH) as conn:
@@ -152,6 +193,7 @@ def bind_mot_to_ad(reg, ad_id, table_name = 'mot_history'):
 def ensure_tables_exist():
     create_ads_table()
     create_mot_history_table()
+    create_caz_table()
         
 if __name__ == "__main__":
     ensure_tables_exist()
