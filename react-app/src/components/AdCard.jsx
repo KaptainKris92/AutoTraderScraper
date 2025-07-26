@@ -213,7 +213,7 @@ export default function AdCard({ ad }) {
       {/* Main card container */}
       <div
         className={`mx-auto bg-white rounded-2xl shadow-md overflow-hidden sm:rounded-xl sm:shadow-lg ${
-          thumbnailMissing ? "w-[400px]" : "w-full max-w-md"
+          thumbnailMissing ? "w-[640px]" : "w-full max-w-md"
         }`}
       >
         {/* Thumbnail image  + quick reg input */}
@@ -222,7 +222,7 @@ export default function AdCard({ ad }) {
             <img
               src={currentThumb}
               alt={`Thumbnail for ${ad?.Title || "car"}`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain rounded-t-lg bg-white p-2"
               onError={() => {
                 console.log(`Thumbnail for ${ad["Ad ID"]} is missing.`);
                 setThumbnailMissing(true);
@@ -235,7 +235,6 @@ export default function AdCard({ ad }) {
             </div>
           )}
 
-
           {/* AutoTrader logo & URL */}
           {ad?.["Ad URL"] && (
             <a
@@ -243,7 +242,7 @@ export default function AdCard({ ad }) {
               target="_blank"
               rel="noopener noreferrer"
               title="View on AutoTrader"
-              className="absolute bottom-0.5 left--1 rounded p-1 z-30"
+              className="absolute bottom-0.5 left-2 rounded p-1 z-30"
             >
               <img
                 src="/icons/autotrader-logo-small.png"
@@ -296,7 +295,12 @@ export default function AdCard({ ad }) {
             </div>
 
             {/* Subtitle */}
-            <div className="text-sm text-gray-500">{ad?.Subtitle || ""}</div>
+            <div className="text-sm text-gray-500 text-center max-w-full overflow-hidden whitespace-nowrap text-ellipsis">
+              <span className="inline-block text-[clamp(0.75rem,3vw,0.875rem)]">
+                {ad?.Subtitle || ""}
+              </span>
+            </div>
+
           </div>
 
           {/* Price */}
