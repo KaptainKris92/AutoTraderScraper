@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { FaTimes, FaTrash, FaLink } from "react-icons/fa";
+import { useModalHistory } from "../hooks/useModalHistory"
 
 // Gets the registration year from the registration number
 function parseRegYear(reg) {
@@ -17,6 +18,8 @@ function parseRegYear(reg) {
 }
 
 export default function MOTHistoryModal({ onClose, adId, initialReg }) {
+    useModalHistory(onClose);
+    
     const [regInput, setRegInput] = useState("");
     const [motHistories, setMotHistories] = useState([]);        
     const [regInputFilter, setRegInputFilter] = useState("");           

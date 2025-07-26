@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import { useModalHistory } from "../hooks/useModalHistory"
 
 export default function BindMOTModal({ adId, onClose, onBindSuccess }) {
+    useModalHistory(onClose);
+    
     const [unboundHistories, setUnboundHistories] = useState([]);
 
     useEffect(() => {

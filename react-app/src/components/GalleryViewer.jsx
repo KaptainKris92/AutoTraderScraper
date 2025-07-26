@@ -1,7 +1,10 @@
 import { useEffect, useState, useRef } from "react";
 import { useDrag } from '@use-gesture/react';
+import { useModalHistory } from "../hooks/useModalHistory"
 
 export default function GalleryViewer({ adId, onClose, onImageChange, ready }) {
+    useModalHistory(onClose);
+
     const [images, setImages] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(true); // Starts as 'Loading...'
