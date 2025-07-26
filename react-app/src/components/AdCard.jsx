@@ -25,28 +25,15 @@ function getDaysAgo(postDateStr) {
 }
 
 export default function AdCard({ ad }) {
+  // ----------------------------
+  // MOT consts and functions 
+  // ----------------------------
   const [showBindModal, setShowBindModal] = useState(false);
   const [showMOTModal, setShowMOTModal] = useState(false);
   const [boundReg, setBoundReg] = useState(null);
   const [regInput, setRegInput] = useState("");
-  const [thumbnailMissing, setThumbnailMissing] = useState(false);
 
-  const [currentThumb, setCurrentThumb] = useState("");
-
-  // Show thumbnail for each ad
-  useEffect(() => {
-    setCurrentThumb(`/api/thumbnail/${ad["Ad ID"]}`);
-    setThumbnailMissing(false); // Reset any missing-state
-  }, [ad]);
-  
-  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  
-  const [imageCount, setImageCount] = useState(0);
-  const [downloading, setDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(null); // How many pictures have been downloaded
-
-  // Fetch the bound registration number
+    // Fetch the bound registration number
   const fetchBoundReg = async () => {
     try {
       const res = await fetch(`/api/mot_history?ad_id=${ad["Ad ID"]}`);
@@ -65,7 +52,10 @@ export default function AdCard({ ad }) {
     }
   };
 
-
+  // Get correct bound reg for each ad
+  useEffect(() => {
+    fetchBoundReg();
+  }, [ad["Ad ID"]]);
 
   // Unbinding reg numbers
   const handleUnbind = async () => {
@@ -108,64 +98,94 @@ export default function AdCard({ ad }) {
     }
   };
 
-  // Clicking thumbnail loads all gallery images and opens GalleryViewer
-  const handleThumbnailClick = async () => {
+  // ----------------------------
+  // Thumbnail consts and functions 
+  // ----------------------------
+  const [thumbnailMissing, setThumbnailMissing] = useState(false);
+  const [currentThumb, setCurrentThumb] = useState("");
+
+  // Show thumbnail for each ad
+  useEffect(() => {
+    setCurrentThumb(`/api/thumbnail/${ad["Ad ID"]}`);
+    setThumbnailMissing(false); // Reset any missing-state
+  }, [ad]);
+
+  // 
+  const checkAndDownloadImages = async () => {
     setDownloading(true);
-    setDownloadProgress(null);
+    setModalVisible(true);  // shows the modal early
+    setGalleryReady(false); // reset
+
     try {
+      // 🔍 Check if images already exist
       const res = await fetch(`/api/image-count/${ad["Ad ID"]}`);
       const { count } = await res.json();
 
-      if (count === 0) {
-        console.log("🔄 No images found, downloading...");
-        const downloadRes = await fetch("/api/download-pictures", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ad_id: ad["Ad ID"],
-            ad_url: ad["Ad URL"]
-          }),
-        });
-
-        if (!downloadRes.ok) {
-          console.error("❌ Image download failed.");
-          alert("Failed to download images.");
-          setDownloading(false);
-          return;
-        }
-        
-        // Poll image count every 500ms until at least 1 available
-        let tries = 0;
-        let finalCount = 0;
-        while (tries < 20) {
-          const pollRes = await fetch (`/api/image-count/${ad["Ad ID"]}`);
-          const { count: currentCount } = await pollRes.json();
-          setDownloadProgress(`${currentCount}/...`);
-          if (currentCount > 0) {
-            finalCount = currentCount;
-            break;
-          }
-          await new Promise((r) => setTimeout(r, 500));
-          tries++;
-        }
-
-        if (finalCount == 0){
-          alert("No images available for this ad.");
-          setDownloading(false);
-          return;
-        }
-      } else {
-        console.log("✅ Gallery already exists for", ad["Ad ID"]);
+      if (count > 0) {
+        console.log("✅ Images already exist — skipping download");
+        setGalleryReady(true); // ✅ must trigger ready
+        return;
       }
 
-      setIsGalleryOpen(true);
+      console.log("🔄 Downloading images...");
+      const downloadRes = await fetch("/api/download-pictures", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ad_id: ad["Ad ID"],
+          ad_url: ad["Ad URL"],
+        }),
+      });
+
+      if (!downloadRes.ok) {
+        throw new Error("❌ Image download failed.");
+      }
+
+      // ⏳ Poll until images appear
+      let tries = 0;
+      let finalCount = 0;
+      while (tries < 20) {
+        const pollRes = await fetch(`/api/image-count/${ad["Ad ID"]}`);
+        const { count: currentCount } = await pollRes.json();
+        if (currentCount > 0) {
+          finalCount = currentCount;
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 500));
+        tries++;
+      }
+
+      if (finalCount === 0) {
+        alert("No images found.");
+        setModalVisible(false); // ❌ prevent stuck spinner
+        return;
+      }
+
+      setGalleryReady(true); // ✅ tell GalleryViewer to load now
     } catch (err) {
-      console.error("❌ Error loading gallery:", err);
-      alert("Something went wrong while opening the gallery.");
+      console.error("❌ Error preparing gallery:", err);
+      alert("Something went wrong.");
+      setModalVisible(false);
     } finally {
-      setDownloading(false);      
+      setDownloading(false);
     }
   };
+
+
+
+
+    // Clicking thumbnail loads all gallery images and opens GalleryViewer
+  const handleThumbnailClick = async () => {
+    await checkAndDownloadImages();
+  };
+
+  // ----------------------------
+  // Gallery download consts and functions 
+  // ----------------------------
+  const [modalVisible, setModalVisible] = useState(false);
+  const [galleryReady, setGalleryReady] = useState(false);
+  const [imageCount, setImageCount] = useState(0);
+  const [downloading, setDownloading] = useState(false);
 
   if (!ad || Object.keys(ad).length === 0) {
     return <div className="text-center p-4">Invalid ad data</div>;
@@ -185,30 +205,24 @@ export default function AdCard({ ad }) {
     fetchImageCount();
   }, [ad["Ad ID"]]);
 
+  // --------
   // RETURN
+  // --------
   return (
     <>
-      {downloading && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center">
-          <div className="text-white text-xl animate-pulse">
-            {downloadProgress ? `Downloading images: ${downloadProgress}` : "Downloading images..."}
-          </div>
-        </div>
-      )}
-
       {/* Main card container */}
       <div
         className={`mx-auto bg-white rounded-2xl shadow-md overflow-hidden sm:rounded-xl sm:shadow-lg ${
-          thumbnailMissing ? "w-[400px]" : "w-full max-w-md"
+          thumbnailMissing ? "w-[640px]" : "w-full max-w-md"
         }`}
       >
         {/* Thumbnail image  + quick reg input */}
-        <div className="relative w-full aspect-[4/3] sm:h-80 sm:aspect-auto bg-gray-100">
+        <div className="relative w-full aspect-[4/3] bg-gray-100">
           {currentThumb ? (
             <img
               src={currentThumb}
               alt={`Thumbnail for ${ad?.Title || "car"}`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain rounded-t-lg bg-white p-2"
               onError={() => {
                 console.log(`Thumbnail for ${ad["Ad ID"]} is missing.`);
                 setThumbnailMissing(true);
@@ -221,7 +235,6 @@ export default function AdCard({ ad }) {
             </div>
           )}
 
-
           {/* AutoTrader logo & URL */}
           {ad?.["Ad URL"] && (
             <a
@@ -229,7 +242,7 @@ export default function AdCard({ ad }) {
               target="_blank"
               rel="noopener noreferrer"
               title="View on AutoTrader"
-              className="absolute bottom-0.5 left--1 rounded p-1 z-30"
+              className="absolute bottom-0.5 left-2 rounded p-1 z-30"
             >
               <img
                 src="/icons/autotrader-logo-small.png"
@@ -282,7 +295,12 @@ export default function AdCard({ ad }) {
             </div>
 
             {/* Subtitle */}
-            <div className="text-sm text-gray-500">{ad?.Subtitle || ""}</div>
+            <div className="text-sm text-gray-500 text-center max-w-full overflow-hidden whitespace-nowrap text-ellipsis">
+              <span className="inline-block text-[clamp(0.75rem,3vw,0.875rem)]">
+                {ad?.Subtitle || ""}
+              </span>
+            </div>
+
           </div>
 
           {/* Price */}
@@ -369,11 +387,12 @@ export default function AdCard({ ad }) {
         )}
 
         {/* Gallery viewer */}
-        {isGalleryOpen && (
+        {modalVisible && (
           <GalleryViewer
             adId={ad["Ad ID"]}
-            onClose={() => setIsGalleryOpen(false)}
+            onClose={() => setModalVisible(false)}
             onImageChange={(img) => setCurrentThumb(img)}
+            ready={galleryReady}
           />
         )}
       </div>

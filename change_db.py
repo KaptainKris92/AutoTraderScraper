@@ -82,7 +82,7 @@ if __name__ == "__main__":
     elif ans == 'reset exclude all':
         clear_exclude('all')
     elif ans == 'reset exclude today':
-        clear_ecxlude('today')
+        clear_exclude('today')
     elif ans == 'reset favourite all':
         clear_favourite('all')
     elif ans == 'reset favourite today':
