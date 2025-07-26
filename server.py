@@ -3,11 +3,16 @@ from utils.database_utils import create_ads_table, update_flag, load_ads, save_m
 from utils.mot_history import get_mot_history
 from pathlib import Path
 from scraper import download_pictures
+import threading
 
 app = Flask(__name__)
 TABLE_NAME = 'ads'
 THUMBNAIL_DIR = Path('thumbnails')
 ensure_tables_exist()
+
+# In-memory progress tracker for downloading images
+download_status = {} 
+
 
 @app.route('/api/fav_exc', methods = ['POST'])
 def favourite_or_exclude_ad():
@@ -126,22 +131,55 @@ def delete_mot_entry(reg):
     delete_mot_history(reg)
     return jsonify({'status': 'deleted'})
 
+@app.route('/api/download-progress/<ad_id>')
+def get_download_progress(ad_id):
+    return jsonify(download_status.get(ad_id, {'status': 'Idle', 'current': 0, 'total': 0}))
+
 @app.route('/api/download-pictures', methods = ['POST'])
 def api_download_pictures():
     data = request.get_json()
     ad_id = data.get('ad_id')
     ad_url = data.get('ad_url')
     
-    if isinstance(ad_id, list):
-        ad_id = ad_id[0]
-    if isinstance(ad_url, list):
-        ad_url = ad_url[0]
+    image_dir = Path('images') / ad_id
+    if image_dir.exists() and any(image_dir.glob('.jpg')):
+        print (f'Skipping download. Images already exist for {ad_id}')
+        return jsonify({'success': True, 'skipped': True})
+    
+    download_status[ad_id] = {'status': 'Starting...', 'current': 0, 'total': 0}
+    
+    def progress_callback(current = None, total = None):
+        if not isinstance(download_status.get(ad_id), dict):
+            print(f"❌ WARNING: download_status[{ad_id}] corrupted. Resetting.")
         
-    try:
-        download_pictures(ad_id, ad_url)
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        # Ensure structure is always a dict
+        if not isinstance(download_status.get(ad_id), dict):
+            download_status[ad_id] = {'status': 'Starting...', 'current': 0, 'total': 0}
+        
+        # Status string updates
+        if isinstance(current, str):
+            download_status[ad_id]['status'] = current
+        
+        # Numeric progress for images (e.g. `1/10``)
+        elif current is not None and total is not None:
+            download_status[ad_id]['current'] = current
+            download_status[ad_id]['total'] = total
+            
+            # Only update status if not already a string status
+            if 'Downloading' in download_status[ad_id].get('status', ''):
+                download_status[ad_id]['status'] = f'Downloading {current}/{total}...'
+    
+    def run_download():
+        try:
+            download_pictures(ad_id, ad_url, progress_callback = progress_callback)
+        finally:
+            download_status.pop(ad_id, None)
+    
+    # Launch in background thread to avoid blocking Flask
+    threading.Thread(target = run_download).start()
+    
+    return jsonify({'success': True})
+        
     
 @app.route('/api/image-count/<ad_id>')
 def image_count(ad_id):

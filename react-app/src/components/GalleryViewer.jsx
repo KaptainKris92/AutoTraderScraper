@@ -1,36 +1,57 @@
 import { useEffect, useState, useRef } from "react";
 import { useDrag } from '@use-gesture/react';
 
-export default function GalleryViewer({ adId, onClose, onImageChange }) {
+export default function GalleryViewer({ adId, onClose, onImageChange, ready }) {
     const [images, setImages] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(true); // Starts as 'Loading...'
+    const [progressStatus, setProgressStatus] = useState("Starting...");
 
     const galleryRef = useRef(null);
 
-    // Fetch image URLs
+    // Fetch gallery image URLs    
     useEffect(() => {
+        if (!ready) return;
+
         const loadImages = async () => {
             try {
-            const res = await fetch(`/api/image-count/${adId}`);
-            const data = await res.json();
-            const count = data.count;
+                const res = await fetch(`/api/image-count/${adId}`);
+                const data = await res.json();
+                const count = data.count;
 
-            const urls = Array.from({ length: count }, (_, i) =>
-                `/api/gallery-image/${adId}/${String(i + 1).padStart(2, "0")}`
-            );
+                const urls = Array.from({ length: count }, (_, i) =>
+                    `/api/gallery-image/${adId}/${String(i + 1).padStart(2, "0")}`
+                );
 
-            setImages(urls);
-            setLoading(false);
+                setImages(urls);
+                setLoading(false);
             } catch (err) {
-            console.error("Failed to fetch image count", err);
-            setLoading(false);
+                console.error("Failed to fetch image count", err);
+                setLoading(false);
             }
         };
 
         loadImages();
-        }, [adId]);
+    }, [adId, ready]);
+    
+    // Poll download progress
+    useEffect(() => {
+        const interval = setInterval(async () => {
+            const res = await fetch(`/api/download-progress/${adId}`);
+            const data = await res.json();
+            setProgressStatus(data.status);
+            if (data.current === data.total && data.total !== 0) {
+                clearInterval(interval);                
+            }
+        }, 500);
 
+        const timeout = setTimeout(() => interval, 1000); // Delays start a bit
+
+        return () => {
+            clearTimeout(timeout);
+            clearInterval(interval)
+        };            
+    }, [adId]);
 
     // Keyboard navigation
     useEffect(() => {
@@ -62,6 +83,13 @@ export default function GalleryViewer({ adId, onClose, onImageChange }) {
         }
     }, [currentIndex]);
 
+    // Reset progress status on adId change
+    useEffect(() => {
+        setProgressStatus("Starting...");
+        setCurrentIndex(0);
+    }, [adId]);
+
+
     const handlePrev = () => {
         setCurrentIndex((i) => Math.max(i - 1, 0));
     };
@@ -77,10 +105,19 @@ export default function GalleryViewer({ adId, onClose, onImageChange }) {
         }
     };
 
+    {progressStatus && (
+    <div className="text-center mt-4 text-sm text-gray-400">{progressStatus}</div>
+    )}
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex flex-col items-center justify-center modal-open">
         {loading ? (
-            <div className="text-white text-lg animate-pulse">Loading images...</div>
+            <div className="text-white text-center space-y-2">
+                <div className="text-lg animate-pulse">Loading images...</div>
+                {progressStatus && (
+                <div className="text-sm text-gray-300">{progressStatus}</div>
+                )}
+            </div>
         ) : images.length === 0 ? (
             <div className="text-white text-lg">No images found.</div>
         ) : (

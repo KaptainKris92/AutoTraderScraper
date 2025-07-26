@@ -1,5 +1,5 @@
 import pandas as pd
-import os, time
+import os, time, sys
 from datetime import datetime
 import re
 
@@ -21,7 +21,21 @@ from pathlib import Path
 from utils.database_utils import create_ads_table, check_ad_id_exists, save_to_sql, get_saved_ad_ids, delete_ads, load_ads
 from utils.general_utils import extract_post_date
 
+# Silence warnings/errors
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # Silence Tensorflow warnings: 0 = all logs, 1 = filter INFO, 2 = filter WARNING, 3 = filter ERROR
+from subprocess import DEVNULL
+import contextlib
+
+@contextlib.contextmanager
+def suppress_stderr():
+    with open(os.devnull, 'w') as devnull:
+        old_stderr = sys.stderr
+        sys.stderr = devnull
+        try:
+            yield
+        finally:
+            sys.stderr = old_stderr
+
 
 # With filters: Under £5k, within 50 miles of Caerphilly, Automatic transmission, <125k miles
 # TODO: Make this modifiable
@@ -30,6 +44,38 @@ AUTOTRADER_URL = "https://www.autotrader.co.uk/car-search?maximum-mileage=125000
 DATA_DIR = Path('data')
 DEFAULT_MAX_SCROLLS = 1 # Maybe default should be all ads possible?
 TABLE_NAME = 'ads'
+
+def create_stealth_driver(headless=True, url = AUTOTRADER_URL):
+    options = Options()
+    if headless:
+        options.add_argument("--headless=new")      
+    options.add_argument("--window-size=1920,1080")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--log-level-3") # Suppresses all but fatal logs
+    options.add_argument("--disable-logging")
+    options.add_argument("--disable-software-rasterizer")    
+    options.add_argument("--disable-features=UseModernMediaControls,SyncService")
+    options.add_argument("--disable-gl-drawing-for-tests")
+    options.add_experimental_option("excludeSwitches", ["enable-logging"])
+    # options.add_experimental_option("useAutomationExtension", False)
+    
+    service = Service(ChromeDriverManager().install(), log_path = os.devnull)
+    with suppress_stderr():
+        driver = webdriver.Chrome(service=service, options=options)
+
+    # Apply stealth settings
+    stealth(driver,
+        languages=["en-GB", "en"],
+        vendor="Google Inc.",
+        platform="Win32",
+        webgl_vendor="Intel Inc.",
+        renderer="Intel Iris OpenGL Engine",
+        fix_hairline=True,
+    )    
+    
+    driver.get(url)
+    
+    return driver
 
 def reject_cookies(driver, timeout=15):
     try:
@@ -53,40 +99,6 @@ def reject_cookies(driver, timeout=15):
 
     except Exception as e:
         print("⚠️ Failed to handle cookie popup:", e)
-        
-def create_stealth_driver(headless=True, url = AUTOTRADER_URL):
-    options = Options()
-    if headless:
-        options.add_argument("--headless=new")  
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument("--window-size=1920,1080")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                         "AppleWebKit/537.36 (KHTML, like Gecko) "
-                         "Chrome/114.0.0.0 Safari/537.36")
-    # Suppress log warnings etc.
-    options.add_argument("--log-level-3") # Suppresses all but fatal logs
-    options.add_argument("--disable-logging")
-    options.add_argument("--disable-software-rasterizer")    
-    options.add_argument("--disable-features=UseModernMediaControls,SyncService")
-    
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-
-    # Apply stealth settings
-    stealth(driver,
-        languages=["en-GB", "en"],
-        vendor="Google Inc.",
-        platform="Win32",
-        webgl_vendor="Intel Inc.",
-        renderer="Intel Iris OpenGL Engine",
-        fix_hairline=True,
-    )    
-    
-    driver.get(url)
-    
-    return driver
 
 def extract_highest_res_images(ad_urls):
     pattern = re.compile(r"/w(\d+)/([a-f0-9]+)\.jpg")
@@ -328,43 +340,58 @@ def download_missing_images(limit = None):
             with open('failed_downloads.log', 'a', encoding='utf-8') as log:
                 log.write(f'{ad_id}, {ad_url}\n')
 
-def download_pictures(ad_id, ad_url):
+def download_pictures(ad_id, ad_url, progress_callback = None):
     folder = Path("images") / ad_id
     folder.mkdir(parents=True, exist_ok=True)
+    
+    if progress_callback:
+        progress_callback('Launching browser...')    
     driver = create_stealth_driver(headless = True, url = ad_url)
+    
+    if progress_callback:
+        progress_callback('Rejecting cookies...')
     reject_cookies(driver)
 
     try:        
-        time.sleep(1)
+        if progress_callback:
+            progress_callback('Clicking ad image thumbnail...')
+        
+        time.sleep(1)  
 
-        # Click a thumbnail on ad page instead of the 'View gallery' button
-        try:
-            thumb = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-testid^='open-carousel']"))
-            )
-            driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", thumb)
-            time.sleep(0.5)
-            thumb.click()
-            print(f"✅ Clicked thumbnail to open gallery for {ad_id}")
-        except Exception as e:
-            print(f"⚠️ Failed to click thumbnail for {ad_id}: {e}")
-            driver.quit()
-            return
-
+        # Click a thumbnail on ad page instead of the 'View gallery' button        
+        thumb = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-testid^='open-carousel']"))
+        )
+        driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", thumb)
+        time.sleep(0.5)
+        
+        # Check for overlays
+        driver.execute_script("window.scrollBy(0, -100);") # Nudge view up
+        WebDriverWait(driver, 5).until(EC.visibility_of(thumb))
+        
+        # Click via JS to bypass any overlays
+        driver.execute_script('arguments[0].click();', thumb)
+    
+        print(f"✅ Clicked thumbnail to open gallery for {ad_id}")
+        
+    except Exception as e:
+        print(f"⚠️ Failed to click thumbnail for {ad_id}: {e}")
+        driver.save_screenshot(f"screenshots/error_click_{ad_id}.png")
+        driver.quit()
+        return
+    
+    # Extract image URLs    
+    try:   
+        if progress_callback:
+            progress_callback('Extracting image URLs...')
+        
         # Wait for modal to load
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='dialog'] img"))
         )
         
         time.sleep(1)  # Ensure images fully render
-
-    except Exception as e:
-        print(f"⚠️ Could not open gallery for {ad_id}: {e}")
-        driver.quit()
-        return
-
-    # ✅ Extract images
-    try:
+        
         image_elements = driver.find_elements(By.CSS_SELECTOR, "div[role='dialog'] picture source")
         
         srcset_urls = []
@@ -375,7 +402,10 @@ def download_pictures(ad_id, ad_url):
                 srcset_urls.extend(urls)
                 
         img_urls = extract_highest_res_images(srcset_urls)
-
+        
+        if progress_callback:
+            progress_callback(0, len(img_urls))
+        
         if not img_urls:
             print("⚠️ No modal image URLs found, falling back to thumbnails.")
             thumb_elements = driver.find_elements(By.CSS_SELECTOR, "img.ImageGalleryImage__image")
@@ -388,13 +418,23 @@ def download_pictures(ad_id, ad_url):
     except Exception as e:
         print(f"⚠️ Could not extract image URLs for {ad_id}: {e}")
         img_urls = []
+        
+    total_images = len(img_urls)        
+    
+    if progress_callback:
+        progress_callback(f'Downloading {total_images} image(s)...')
 
-    # ✅ Download images
+    # Download images with progress
     for i, img_url in enumerate(img_urls):
         try:
             img_data = requests.get(img_url, timeout=10).content
             with open(folder / f"{i+1:02}.jpg", "wb") as f:
                 f.write(img_data)
+                
+            # Call progress callback to get how many images downloaded out of total
+            if progress_callback:
+                progress_callback(i + 1, total_images)
+                
         except Exception as e:
             print(f"❌ Failed to download image {i+1} for {ad_id}: {e}")
 
