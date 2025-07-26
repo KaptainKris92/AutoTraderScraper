@@ -163,6 +163,26 @@ def get_mot_histories(ad_id = None, table_name = 'mot_history'):
             for row in cursor.fetchall()
         ]
         
+def get_caz_data(registration, table_name="caz"):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            f"SELECT zone, daily_charge, zone_live, map_url, exemptions_url FROM {table_name} WHERE registration = ?",
+            (registration.upper(),),
+        )
+        rows = cursor.fetchall()
+        return [
+            {
+                "Zone": row[0],
+                "Daily Charge": row[1],
+                "Zone Live": row[2],
+                "Map URL": row[3],
+                "Exemptions URL": row[4],
+            }
+            for row in rows
+        ]
+
+        
 def delete_ads(ids_to_remove, table_name = 'ads'):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()

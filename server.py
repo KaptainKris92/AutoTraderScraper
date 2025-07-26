@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from utils.database_utils import create_ads_table, update_flag, load_ads, save_mot_history, get_mot_histories, delete_mot_history, bind_mot_to_ad, ensure_tables_exist, save_caz_data
+from utils.database_utils import create_ads_table, update_flag, load_ads, save_mot_history, get_mot_histories, delete_mot_history, bind_mot_to_ad, ensure_tables_exist, save_caz_data, get_caz_data
 from utils.mot_history import get_mot_history
 from utils.scrape_utils import download_pictures, check_caz
 from pathlib import Path
@@ -206,6 +206,18 @@ def api_check_caz():
     except Exception as e:
         print(f'❌ CAZ check failed for {reg}: {e}')
         return jsonify({'error': str(e)}), 500
+    
+@app.route("/api/caz", methods=["GET"])
+def get_caz():
+    reg = request.args.get("reg")
+    if not reg:
+        return jsonify({"error": "Missing registration"}), 400
+    try:
+        results = get_caz_data(reg)
+        return jsonify({"registration": reg.upper(), "zone": results})
+    except Exception as e:
+        print(f"❌ Failed to load CAZ from DB: {e}")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     create_ads_table(TABLE_NAME)
