@@ -36,6 +36,8 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready }) {
 
         loadImages();
     }, [adId, ready]);
+
+    
     
     // Poll download progress
     useEffect(() => {
