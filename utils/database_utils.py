@@ -5,7 +5,6 @@ from datetime import datetime
 import pandas as pd
 from pathlib import Path
 
-
 # SQLite location
 DATA_DIR = Path('data')
 DB_PATH = DATA_DIR / 'autotrader_listings.db'
@@ -13,7 +12,11 @@ DB_PATH = DATA_DIR / 'autotrader_listings.db'
 # Create dir if doesn't exist
 os.makedirs(DATA_DIR, exist_ok = True)
 
-# Create SQLite table for storing scraped ad info
+
+# %% Create tables
+# ----------------
+
+# Scraped ad information
 def create_ads_table(table_name = 'ads'):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
@@ -30,12 +33,15 @@ def create_ads_table(table_name = 'ads'):
                            "Location" TEXT,
                            "Ad post date" TEXT,
                            "Favourited" INTEGER DEFAULT 0,
+                           "Favourited timestamp" TEXT,
                            "Excluded" INTEGER DEFAULT 0,
+                           "Excluded timestamp" TEXT,
                            "Scraped at" TEXT                           
                        )
                        ''')
         conn.commit()
-        
+
+# Results from MOT History API        
 def create_mot_history_table(table_name = 'mot_history'):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
@@ -48,7 +54,8 @@ def create_mot_history_table(table_name = 'mot_history'):
                        )
                        ''')
         conn.commit()
-        
+
+# Results from CAZ website        
 def create_caz_table(table_name='caz'):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
@@ -65,12 +72,28 @@ def create_caz_table(table_name='caz'):
         ''')
         conn.commit()
 
-# TODO: Rename to 'save_ads_data'        
-def save_to_sql(data, table_name = 'ads'):
+# Search parameter profiles        
+def create_search_profiles_table():
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute('''
+                     CREATE TABLE IF NOT EXISTS search_profiles (
+                         id INTEGER PRIMARY KEY AUTOINCREMENT,
+                         name TEXT NOT NULL,
+                         params_json TEXT NOT NULL,
+                         created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                     )
+                     ''')
+
+# %% Save to tables
+# ------------------
+
+# Scraped ad data
+def save_ads_data(data, table_name = 'ads'):
     with sqlite3.connect(DB_PATH) as conn:
         df = pd.DataFrame(data)
         df.to_sql(table_name, conn, if_exists = 'append', index = False)        
-        
+
+# CAZ website results table        
 def save_caz_data(registration, caz_data, table_name='caz'):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
@@ -95,50 +118,6 @@ def save_caz_data(registration, caz_data, table_name='caz'):
             ))
         conn.commit()
         
-def check_ad_id_exists(ad_id, table_name = 'ads'):
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute(f"SELECT 1 FROM {table_name} WHERE \"Ad ID\" = ?", (ad_id,))
-        return cursor.fetchone() is not None
-    
-def update_flag(ad_id, column, value, table_name='ads'):
-    if column not in ("Favourited", "Excluded"):
-        raise ValueError("Invalid column")
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute(f'UPDATE {table_name} SET "{column}" = ? WHERE "Ad ID" = ?', (value, ad_id))
-        conn.commit()
-
-def insert_test_ad(table_name='ads'):
-    ad = {
-        "Ad URL": "https://www.autotrader.co.uk/car-details/202507054201480",
-        "Ad ID": "e46b69ca14",
-        "Title": "Reliant Scimitar",
-        "Subtitle": "3.0 GTE 2dr",
-        "Price": "£4,500",
-        "Mileage": 33543,
-        "Registered Year": "1980 (W reg)",
-        "Distance (miles)": 25,
-        "Location": "Porthcawl",
-        "Ad post date": "2025-07-05",
-        "Favourited": 0,
-        "Excluded": 0,
-        "Scraped at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    save_to_sql([ad], table_name)
-    
-def load_ads(table = 'ads'):
-    with sqlite3.connect(DB_PATH) as conn:
-        df = pd.read_sql_query(f'SELECT * FROM {table}', conn)
-        df = df.fillna("").replace({float("nan"): ""})
-        return df.to_dict(orient='records')
-    
-def get_saved_ad_ids(table_name = 'ads'):
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute(f"SELECT `Ad ID`, `Ad URL` FROM {table_name}")
-        return cursor.fetchall()
-    
 def save_mot_history(reg, data, ad_id = None, table_name = 'mot_history'):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
@@ -150,6 +129,22 @@ def save_mot_history(reg, data, ad_id = None, table_name = 'mot_history'):
             (reg.upper(), json.dumps(data), ad_id, datetime.now().isoformat())
         )
         conn.commit()
+        
+
+# %% Retrieve data from tables
+# ------------------------------
+
+def load_ads(table = 'ads'):
+    with sqlite3.connect(DB_PATH) as conn:
+        df = pd.read_sql_query(f'SELECT * FROM {table}', conn)
+        df = df.fillna("").replace({float("nan"): ""})
+        return df.to_dict(orient='records')
+    
+def get_saved_ad_ids(table_name = 'ads'):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT `Ad ID`, `Ad URL` FROM {table_name}")
+        return cursor.fetchall()
 
 def get_mot_histories(ad_id = None, table_name = 'mot_history'):
     with sqlite3.connect(DB_PATH) as conn:
@@ -182,7 +177,9 @@ def get_caz_data(registration, table_name="caz"):
             for row in rows
         ]
 
-        
+# %% Delete rows from tables
+# ---------------------------
+
 def delete_ads(ids_to_remove, table_name = 'ads'):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
@@ -198,6 +195,23 @@ def delete_mot_history(reg, table_name = 'mot_history'):
         cursor.execute(f"DELETE FROM {table_name} WHERE registration = ?", (reg.upper(),))
         conn.commit()
         
+# %% Other utils
+# --------------
+        
+def check_ad_id_exists(ad_id, table_name = 'ads'):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT 1 FROM {table_name} WHERE \"Ad ID\" = ?", (ad_id,))
+        return cursor.fetchone() is not None
+    
+def update_flag(ad_id, column, value, table_name='ads'):
+    if column not in ("Favourited", "Excluded"):
+        raise ValueError("Invalid column")
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(f'UPDATE {table_name} SET "{column}" = ? WHERE "Ad ID" = ?', (value, ad_id))
+        conn.commit()
+
 def bind_mot_to_ad(reg, ad_id, table_name = 'mot_history'):
     '''
     Returns: ad_id, ad_url
@@ -214,6 +228,7 @@ def ensure_tables_exist():
     create_ads_table()
     create_mot_history_table()
     create_caz_table()
+    create_search_profiles_table()
         
 if __name__ == "__main__":
     ensure_tables_exist()

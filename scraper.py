@@ -1,7 +1,7 @@
 
 from pathlib import Path
 from utils.scrape_utils import scrape_autotrader, download_missing_images
-from utils.database_utils import create_ads_table, save_to_sql
+from utils.database_utils import create_ads_table, save_ads_data
 
 DATA_DIR = Path('data')
 DEFAULT_MAX_SCROLLS = 1 # Maybe default should be all ads possible?
@@ -22,7 +22,7 @@ if __name__ == "__main__":
         create_ads_table()
         max_scrolls = 999999 if args.scroll_until_end else args.max_scrolls 
         df = scrape_autotrader(max_scrolls = max_scrolls)
-        save_to_sql(df, TABLE_NAME)
+        save_ads_data(df, TABLE_NAME)
     if args.download:
         download_missing_images(limit=args.limit)    
             
