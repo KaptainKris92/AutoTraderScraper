@@ -13,6 +13,116 @@ ensure_tables_exist()
 # In-memory progress tracker for downloading images
 download_status = {} 
 
+# %% GET
+# -------
+
+#### ADS ####
+
+# Returns all rows from ads table
+@app.route('/api/ads', methods = ['GET'])
+def get_ads():
+    ads = load_ads('ads')
+    
+    if not ads:
+        return jsonify({"message": "No ads found", "data": []}), 200
+    return jsonify({ "data": ads or [], "message": "ok"})
+
+#### IMAGES ####
+
+# Serve thumbnails from root `thumbnails/` folder
+@app.route('/api/thumbnail/<ad_id>', methods = ['GET'])
+def serve_thumbnail(ad_id):
+    filename = f'{ad_id}.jpg'
+    thumb_path = THUMBNAIL_DIR / filename
+    
+    if thumb_path.exists():
+        return send_from_directory(THUMBNAIL_DIR, filename)
+    else:
+        print(f'❌ Thumbnail not found: {thumb_path}')
+        return 'Thumbnail not found', 404
+    
+# Serve scraped gallery image from root `images/` folder
+@app.route('/api/gallery-image/<ad_id>/<image_index>', methods=['GET', 'HEAD'])
+def serve_gallery_image(ad_id, image_index):
+    filename = f"{str(image_index).zfill(2)}.jpg"
+    folder = Path("images") / ad_id
+    return send_from_directory(folder, filename)
+
+#### MOT ####
+
+# Get new MOT History through API
+@app.route('/api/mot_history/query', methods = ['GET'])
+def query_mot_history():
+    try:
+        reg = request.args.get("reg").replace(" ", "").strip()
+        if not reg:
+            return jsonify({'error': 'Missing registration number'}), 400
+        
+        result = get_mot_history(reg.upper())
+        
+        if 'error' in result:
+            return jsonify(result), 403 if 'Forbidden' in result.get('details', '') else 500
+        
+        return jsonify(result)
+    except Exception as e:
+        print('❌ Internal server error in /api/mot_history:', str(e))
+        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
+    
+# Get previous MOT History from local database
+@app.route('/api/mot_history', methods = ['GET'])
+def get_all_mot():
+    try:
+        ad_id = request.args.get('ad_id')
+        if not ad_id:
+            ad_id = None
+            print('Fetching all MOT histories')
+        else:
+            print(f'Fetching MOT history for ad_id {ad_id}')
+
+        histories = get_mot_histories(ad_id)
+        return jsonify(histories)
+    
+    except Exception as e:
+        print(f'❌ Error fetching MOT history: {e}')
+        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
+
+
+#### CAZ ####
+
+# Goes through 4 CAZ pages using registration number
+@app.route('/api/check-caz', methods=['GET'])
+def api_check_caz():
+    reg = request.args.get('reg')
+    if not reg:
+        return jsonify({'error': 'Missing registration'}), 400
+    
+    try:
+        result = check_caz(reg)
+        save_caz_data(reg, result)
+        return jsonify({'registration': reg.upper(), 'zone': result})
+    except Exception as e:
+        print(f'❌ CAZ check failed for {reg}: {e}')
+        return jsonify({'error': str(e)}), 500
+    
+# Gets CAZ charges data for specified registration number from local database     
+@app.route("/api/caz", methods=["GET"])
+def get_caz():
+    reg = request.args.get("reg")
+    if not reg:
+        return jsonify({"error": "Missing registration"}), 400
+    try:
+        results = get_caz_data(reg)
+        return jsonify({"registration": reg.upper(), "zone": results})
+    except Exception as e:
+        print(f"❌ Failed to load CAZ from DB: {e}")
+        return jsonify({"error": str(e)}), 500
+    
+# %% POST
+# -------
+
+#### ADS ####
+
+# Changes value of `excluded` or `favourited` column
 @app.route('/api/fav_exc', methods = ['POST'])
 def favourite_or_exclude_ad():
     data = request.get_json()
@@ -41,49 +151,9 @@ def favourite_or_exclude_ad():
     update_flag(ad_id, column, value, TABLE_NAME)
     return jsonify({"status": "ok", "ad_id": ad_id, column: value})
 
-@app.route('/api/ads', methods = ['GET'])
-def get_ads():
-    ads = load_ads('ads')
-    
-    if not ads:
-        return jsonify({"message": "No ads found", "data": []}), 200
-    return jsonify({ "data": ads or [], "message": "ok"})
+#### MOT ####
 
-@app.route('/api/thumbnail/<ad_id>', methods = ['GET'])
-def serve_thumbnail(ad_id):
-    filename = f'{ad_id}.jpg'
-    thumb_path = THUMBNAIL_DIR / filename
-    
-    if thumb_path.exists():
-        return send_from_directory(THUMBNAIL_DIR, filename)
-    else:
-        print(f'❌ Thumbnail not found: {thumb_path}')
-        return 'Thumbnail not found', 404
-
-@app.route('/api/gallery-image/<ad_id>/<image_index>', methods=['GET', 'HEAD'])
-def serve_gallery_image(ad_id, image_index):
-    filename = f"{str(image_index).zfill(2)}.jpg"
-    folder = Path("images") / ad_id
-    return send_from_directory(folder, filename)
-
-# Get new MOT History through API
-@app.route('/api/mot_history/query', methods = ['GET'])
-def query_mot_history():
-    try:
-        reg = request.args.get("reg").replace(" ", "").strip()
-        if not reg:
-            return jsonify({'error': 'Missing registration number'}), 400
-        
-        result = get_mot_history(reg.upper())
-        
-        if 'error' in result:
-            return jsonify(result), 403 if 'Forbidden' in result.get('details', '') else 500
-        
-        return jsonify(result)
-    except Exception as e:
-        print('❌ Internal server error in /api/mot_history:', str(e))
-        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
-    
+# Saves MOT History API results to `mot_history` table    
 @app.route('/api/mot_history', methods = ['POST'])
 def save_mot_entry():
     data = request.get_json()
@@ -95,24 +165,7 @@ def save_mot_entry():
     save_mot_history(reg, mot_data, ad_id)
     return jsonify({'status': 'saved'})
 
-# Get MOT History from local database
-@app.route('/api/mot_history', methods = ['GET'])
-def get_all_mot():
-    try:
-        ad_id = request.args.get('ad_id')
-        if not ad_id:
-            ad_id = None
-            print('Fetching all MOT histories')
-        else:
-            print(f'Fetching MOT history for ad_id {ad_id}')
-
-        histories = get_mot_histories(ad_id)
-        return jsonify(histories)
-    
-    except Exception as e:
-        print(f'❌ Error fetching MOT history: {e}')
-        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
-
+# Link an MOT entry to an ad_id
 @app.route('/api/mot_history/bind', methods = ['POST'])
 def bind_mot_entry():
     data = request.get_json()
@@ -130,15 +183,9 @@ def bind_mot_entry():
     bind_mot_to_ad(reg, ad_id)
     return jsonify({'status': 'bound'})
 
-@app.route('/api/mot_history/<reg>', methods = ['DELETE'])
-def delete_mot_entry(reg):
-    delete_mot_history(reg)
-    return jsonify({'status': 'deleted'})
+#### IMAGES ####
 
-@app.route('/api/download-progress/<ad_id>')
-def get_download_progress(ad_id):
-    return jsonify(download_status.get(ad_id, {'status': 'Idle', 'current': 0, 'total': 0}))
-
+# Download gallery images for a specific ad to root `images/` folder by scraping the gallery page for highest resolution images.
 @app.route('/api/download-pictures', methods = ['POST'])
 def api_download_pictures():
     data = request.get_json()
@@ -183,8 +230,25 @@ def api_download_pictures():
     threading.Thread(target = run_download).start()
     
     return jsonify({'success': True})
-        
+
+# %% DELETE
+# ---------
+
+# Delete an MOT entry
+@app.route('/api/mot_history/<reg>', methods = ['DELETE'])
+def delete_mot_entry(reg):
+    delete_mot_history(reg)
+    return jsonify({'status': 'deleted'})
+
+# %% OTHER
+# ---------
+
+# Return `download_status`` generated by the `api_download_pictures()` route
+@app.route('/api/download-progress/<ad_id>')
+def get_download_progress(ad_id):
+    return jsonify(download_status.get(ad_id, {'status': 'Idle', 'current': 0, 'total': 0}))
     
+# Return the number of gallery images on disk for a specific ad_id 
 @app.route('/api/image-count/<ad_id>')
 def image_count(ad_id):
     folder = Path("images") / ad_id
@@ -192,32 +256,6 @@ def image_count(ad_id):
         return jsonify({"count": 0})
     count = len(list(folder.glob("*.jpg")))
     return jsonify({"count": count})
-
-@app.route('/api/check-caz', methods=['GET'])
-def api_check_caz():
-    reg = request.args.get('reg')
-    if not reg:
-        return jsonify({'error': 'Missing registration'}), 400
-    
-    try:
-        result = check_caz(reg)
-        save_caz_data(reg, result)
-        return jsonify({'registration': reg.upper(), 'zone': result})
-    except Exception as e:
-        print(f'❌ CAZ check failed for {reg}: {e}')
-        return jsonify({'error': str(e)}), 500
-    
-@app.route("/api/caz", methods=["GET"])
-def get_caz():
-    reg = request.args.get("reg")
-    if not reg:
-        return jsonify({"error": "Missing registration"}), 400
-    try:
-        results = get_caz_data(reg)
-        return jsonify({"registration": reg.upper(), "zone": results})
-    except Exception as e:
-        print(f"❌ Failed to load CAZ from DB: {e}")
-        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     create_ads_table(TABLE_NAME)
