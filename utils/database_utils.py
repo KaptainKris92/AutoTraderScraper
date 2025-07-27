@@ -38,7 +38,7 @@ def create_ads_table(table_name = 'ads'):
                            "excluded" INTEGER DEFAULT 0,
                            "excluded_date" TEXT,
                            "scrape_date" TEXT,
-                           "search_id"                           
+                           "search_id" INTEGER                           
                        )
                        ''')
         conn.commit()
@@ -131,6 +131,17 @@ def save_mot_history(reg, data, ad_id = None, table_name = 'mot_history'):
             (reg.upper(), json.dumps(data), ad_id, datetime.now().isoformat())
         )
         conn.commit()
+
+# Saves user search settings into a profile        
+def save_search_params(name, params):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO search_profiles (name, params_json) VALUES (?, ?)",
+            (name, json.dumps(params))
+        )
+        conn.commit()
+        return cursor.lastrowid        
         
 
 # %% Retrieve data from tables
@@ -179,6 +190,17 @@ def get_caz_data(registration, table_name="caz"):
             for row in rows
         ]
 
+def get_search_params():
+    with sqlite3.connect(DB_PATH) as conn:
+        profiles = conn.execute("SELECT id, name, params_json FROM search_profiles").fetchall()
+        return [
+            {
+                "id": row[0],
+                "name": row[1],
+                "params": json.loads(row[2])
+            }
+            for row in profiles
+        ]
 # %% Delete rows from tables
 # ---------------------------
 

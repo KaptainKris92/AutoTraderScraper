@@ -17,7 +17,7 @@ export default function Excluded() {
         .then((res) => res.json())
         .then((data) => {
             const onlyExcluded = data.filter((ad) => ad.excluded === 1);
-            const sorted = sortAds(onlyexcluded, sortBy, sortDirection);
+            const sorted = sortAds(onlyExcluded, sortBy, sortDirection);
             setAds(sorted);
         })
         .catch((err) => console.error("Failed to load excluded ads:", err));

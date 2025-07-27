@@ -19,13 +19,15 @@ from selenium_stealth import stealth
 from utils.database_utils import check_ad_id_exists, get_saved_ad_ids, delete_ads, load_ads
 from utils.general_utils import extract_post_date
 
-
 # TODO: Avoid needing these parameters here. Add to scraper.py instead, or when implementing changing search filters
 # With filters: Under £5k, within 50 miles of Caerphilly, Automatic transmission, <125k miles
-AUTOTRADER_URL = "https://www.autotrader.co.uk/car-search?maximum-mileage=125000&postcode=CF83%208TF&price-to=5000&radius=50&sort=relevance&transmission=Automatic"  
+AUTOTRADER_URL = 'https://www.autotrader.co.uk/car-search?maximum-mileage=125000&postcode=CF83%208TF&price-to=5000&radius=50&sort=relevance&transmission=Automatic'
 DEFAULT_MAX_SCROLLS = 1 # Maybe default should be all ads possible?
 TABLE_NAME = 'ads'
 DATA_DIR = Path('data')
+
+# %% General scraping functions
+# ------------------
 
 def create_stealth_driver(headless=True, url = AUTOTRADER_URL):
     options = Options()
@@ -80,19 +82,45 @@ def reject_cookies(driver, timeout=15):
     except Exception as e:
         print("⚠️ Failed to handle cookie popup:", e)
 
-def extract_highest_res_images(ad_urls):
-    pattern = re.compile(r"/w(\d+)/([a-f0-9]+)\.jpg")
-    best_images = {}
+# %% AutoTrader ads
+# --------------
 
-    for url in ad_urls:
-        match = pattern.search(url)
-        if match:
-            width = int(match.group(1))
-            key = match.group(2)  # hash name of image
-            if key not in best_images or width > best_images[key][0]:
-                best_images[key] = (width, url)
-    
-    return [info[1] for info in best_images.values()]
+possible_params = ['postcode', 
+                   'radius', 
+                   'make', 
+                #    'model', # Not including model since conditional drop-down would be too much work atm.  
+                   'min_price', 
+                   'max_price',
+                   'min_reg_year',
+                   'max_reg_year',
+                   'min_mileage', 
+                   'max_mileage',
+                   'gearbox',
+                   'body_type',
+                   'colour',
+                   'doors',
+                   'seats',
+                   'fuel type',
+                   'min_engine_size',
+                   'max_engine_size',
+                   'min_engine_power',
+                   'max_engine_power',
+                   'acceleration',
+                   'fuel_consumption',
+                   'co2_emissions',
+                   'tax_per_year',
+                   'insurance_group',
+                   'drive_type',
+                   'boot_space',
+                   'seller_type',
+                   'previously_written_off'
+                   ]
+
+def generate_autotrader_urls(params):
+    base = "https://www.autotrader.co.uk/car-search?"
+    mapping = {"postcode": lambda x: f"postcode={x}",
+               "radius": lambda x: f"radius={x}",
+               "make": lambda x: f"make={x}"}
 
 def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
     DATA_DIR.mkdir(parents=True, exist_ok=True)    
@@ -281,6 +309,22 @@ def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
         print(f"Saved {len(df)} listings to {file_path}")
     return df
 
+# %% AutoTrader images
+# ---------------------
+def extract_highest_res_images(ad_urls):
+    pattern = re.compile(r"/w(\d+)/([a-f0-9]+)\.jpg")
+    best_images = {}
+
+    for url in ad_urls:
+        match = pattern.search(url)
+        if match:
+            width = int(match.group(1))
+            key = match.group(2)  # hash name of image
+            if key not in best_images or width > best_images[key][0]:
+                best_images[key] = (width, url)
+    
+    return [info[1] for info in best_images.values()]
+
 def download_thumbnail(ad_id, thumbnail_url, save_dir = 'thumbnails'):
     Path(save_dir).mkdir(parents = True, exist_ok = True)
     try:
@@ -422,7 +466,10 @@ def download_pictures(ad_id, ad_url, progress_callback = None):
 
     driver.quit()
     print(f"✅ Downloaded {len(img_urls)} images for {ad_id}")
-    
+
+# %% CAZ
+# -------
+
 def check_caz(registration="FL56DPZ"):    
     driver = create_stealth_driver(headless = True, url = "https://multiple-vehiclecheck-pay.drive-clean-air-zone.service.gov.uk/what_would_you_like_to_do")
 

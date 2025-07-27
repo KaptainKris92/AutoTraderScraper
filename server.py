@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from utils.database_utils import create_ads_table, update_flag, load_ads, save_mot_history, get_mot_histories, delete_mot_history, bind_mot_to_ad, ensure_tables_exist, save_caz_data, get_caz_data
+from utils.database_utils import create_ads_table, update_flag, load_ads, save_mot_history, get_mot_histories, delete_mot_history, bind_mot_to_ad, ensure_tables_exist, save_caz_data, get_caz_data, save_search_params, get_search_params
 from utils.mot_history import get_mot_history
 from utils.scrape_utils import download_pictures, check_caz
 from pathlib import Path
@@ -117,6 +117,15 @@ def get_caz():
         print(f"❌ Failed to load CAZ from DB: {e}")
         return jsonify({"error": str(e)}), 500
     
+#### SEARCH PROFILES ####
+
+# Retrieves all search profiles
+@app.route("/api/search-profiles")
+def get_search_profiles():
+    return jsonify(get_search_params())
+
+
+    
 # %% POST
 # -------
 
@@ -230,6 +239,20 @@ def api_download_pictures():
     threading.Thread(target = run_download).start()
     
     return jsonify({'success': True})
+
+#### SEARCH PROFILES ####
+
+# Saves user's search preferences into a profile. Ads are linked to this profile (can be linked to multiple).
+@app.route("/api/search-profile", methods = ["POST"])
+def save_search_profile():
+    data = request.get_json()
+    name = data.get("name")
+    params = data.get("params")
+    if not name or not params:
+        return jsonify({"error": "Missing name or params"}), 400
+    
+    lastrow = save_search_params(name, params)
+    return jsonify({"status": "saved", "id": lastrow})
 
 # %% DELETE
 # ---------
