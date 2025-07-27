@@ -133,7 +133,7 @@ export default function AdCard({ ad }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ad_id: ad["Ad ID"],
-          ad_url: ad["Ad URL"],
+          ad_url: ad.ad_url,
         }),
       });
 
@@ -221,7 +221,7 @@ export default function AdCard({ ad }) {
           {currentThumb ? (
             <img
               src={currentThumb}
-              alt={`Thumbnail for ${ad?.Title || "car"}`}
+              alt={`Thumbnail for ${ad?.title || "car"}`}
               className="w-full h-full object-contain rounded-t-lg bg-white p-2"
               onError={() => {
                 console.log(`Thumbnail for ${ad["Ad ID"]} is missing.`);
@@ -236,9 +236,9 @@ export default function AdCard({ ad }) {
           )}
 
           {/* AutoTrader logo & URL */}
-          {ad?.["Ad URL"] && (
+          {ad?.ad_url && (
             <a
-              href={ad["Ad URL"]}
+              href={ad.ad_url}
               target="_blank"
               rel="noopener noreferrer"
               title="View on AutoTrader"
@@ -274,8 +274,8 @@ export default function AdCard({ ad }) {
           {/* Mileage & Reg Year */}
           <div className="flex justify-between text-sm text-gray-600 font-medium">
             <span>
-              {ad?.Mileage && typeof ad.Mileage === "number"
-                ? ad.Mileage.toLocaleString() + " mi"
+              {ad?.mileage && typeof ad.mileage === "number"
+                ? ad.mileage.toLocaleString() + " mi"
                 : "Unknown mileage"}
             </span>
 
@@ -284,20 +284,20 @@ export default function AdCard({ ad }) {
               <div className="text-xs text-gray-500">Reg: {boundReg}</div>
             )}
 
-            <span>{ad?.["Registered Year"] || "Unknown year"}</span>
+            <span>{ad?.reg_year || "Unknown year"}</span>
           </div>
 
           {/* Title & Subtitle */}
           <div className="relative flex flex-col items-center">
             {/* Ad Title */}
             <div className="text-lg font-bold text-gray-800">
-              {ad?.Title || "No title"}
+              {ad?.title || "No title"}
             </div>
 
-            {/* Subtitle */}
+            {/* subtitle */}
             <div className="text-sm text-gray-500 text-center max-w-full overflow-hidden whitespace-nowrap text-ellipsis">
               <span className="inline-block text-[clamp(0.75rem,3vw,0.875rem)]">
-                {ad?.Subtitle || ""}
+                {ad?.subtitle || ""}
               </span>
             </div>
 
@@ -305,29 +305,29 @@ export default function AdCard({ ad }) {
 
           {/* Price */}
           <div className="text-2xl font-extrabold text-green-700">
-            {ad?.Price || "£0"}
+            {ad?.price || "£0"}
           </div>
 
           {/* Distance & Location */}
           <div className="text-sm text-gray-600">
-            {ad?.["Distance (miles)"]
-              ? `${ad["Distance (miles)"]} mi`
+            {ad?.distance
+              ? `${ad.distance} mi`
               : "Distance unknown"}{" "}
-            · {ad?.Location || "Unknown location"}
+            · {ad?.location || "Unknown location"}
           </div>
 
           {/* Post Date */}
           <div className="text-xs text-zinc-500">
-            <div>Posted: {ad?.["Ad post date"] || "Unknown"}</div>
-            {getDaysAgo(ad?.["Ad post date"]) && (
+            <div>Posted: {ad?.post_date || "Unknown"}</div>
+            {getDaysAgo(ad?.post_date) && (
               <div className="text-[12px] text-zinc-500 italic mb-6">
-                {getDaysAgo(ad["Ad post date"])}
+                {getDaysAgo(ad.post_date)}
               </div>
             )}
           </div>
 
           {/* 'Favourited' indicator */}
-          {ad.Favourited === 1 && (
+          {ad.favourited === 1 && (
             <div className="absolute bottom-2 left-2 text-pink-500 text-xl">
               <FaHeart />
             </div>

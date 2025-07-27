@@ -44,7 +44,7 @@ export default function Home() {
         // Update local state for immediate feedback
         setAds((prevAds) =>
             prevAds.map((ad) =>
-            ad["Ad ID"] === adId ? { ...ad, Favourited: newValue } : ad 
+            ad.ad_id === adId ? { ...ad, favourited: newValue } : ad 
             )
         );      
         });
@@ -58,13 +58,13 @@ export default function Home() {
         }).then(() => {
             // Immediately remove excluded ad from state
             setTimeout(() => {
-                setAds((prevAds) => prevAds.filter((ad) => ad["Ad ID"] !== adId));
+                setAds((prevAds) => prevAds.filter((ad) => ad.ad_id !== adId));
             }, 200); // 200ms delay before removing the ad
             
         });
     };
 
-    const filteredAds = ads.filter(ad => ad.Excluded !== 1); // Don't show excluded ads
+    const filteredAds = ads.filter(ad => ad.excluded !== 1); // Don't show excluded ads
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-start py-2 sm:pt-10 space-y-6">

@@ -220,19 +220,19 @@ def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
         cleaned_title = re.sub(r'[\n\r]+,?$', '', cleaned_title).strip()
 
         car_data.append({
-            'Ad URL': ad_url,
-            'Ad ID': ad_id,
-            'Title': cleaned_title,
-            'Subtitle': subtitle,
-            'Price': price,
-            'Mileage': mileage_numeric,
-            'Registered Year': reg_year,
-            'Distance (miles)': dist,
-            'Location': city,
-            'Ad post date': post_date,
-            'Favourited': 0,
-            'Excluded': 0,
-            'Scraped at': datetime.now().strftime("%Y-%m-%d %H:%M:%S")                                
+            'ad_url': ad_url,
+            'ad_id': ad_id,
+            'title': cleaned_title,
+            'subtitle': subtitle,
+            'price': price,
+            'mileage': mileage_numeric,
+            'reg_year': reg_year,
+            'distance': dist,
+            'location': city,
+            'post_date': post_date,
+            'favourited': 0,
+            'excluded': 0,
+            'scrape_date': datetime.now().strftime("%Y-%m-%d %H:%M:%S")                                
         })
         
         if not title:
@@ -241,12 +241,12 @@ def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
     driver.quit()
 
     df = pd.DataFrame(car_data)
-    df = df.drop_duplicates(subset = 'Ad ID')
+    df = df.drop_duplicates(subset = 'ad_id')
     
     # Remove any ads no longer listed
-    live_ad_ids = set(df['Ad ID'])
+    live_ad_ids = set(df['ad_id'])
     saved_ads = load_ads(TABLE_NAME)
-    saved_ad_ids = set(ad['Ad ID'] for ad in saved_ads)
+    saved_ad_ids = set(ad['ad_id'] for ad in saved_ads)
     to_remove = saved_ad_ids - live_ad_ids
     
     if to_remove:

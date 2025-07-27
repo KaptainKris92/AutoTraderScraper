@@ -32,9 +32,9 @@ def favourite_or_exclude_ad():
         return jsonify({'error': 'Missing operation'}), 400
     
     if operation == 'favourite':
-        column = 'Favourited'
+        column = 'favourited'
     elif operation == 'exclude':
-        column = 'Excluded'
+        column = 'excluded'
     else:
         return jsonify({'error': f"Invalid operation '{operation}'. Must be either 'favourite' or 'exclude'"}), 400
     
@@ -120,7 +120,7 @@ def bind_mot_entry():
     ad_id = data.get('ad_id')        
     
     if not reg:
-        return jsonify({'error': 'Missing registration or Ad ID'}), 400
+        return jsonify({'error': 'Missing registration or ad_id'}), 400
     print(f"🔗 Binding reg {reg} to ad_id {ad_id}")
     
     # Interpret empty string as NULL

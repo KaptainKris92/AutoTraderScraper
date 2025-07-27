@@ -10,7 +10,7 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
   const [showFavouritesOnly, setShowFavouritesOnly] = useState(false);
 
   const filteredAds = showFavouritesOnly
-    ? ads.filter(ad => ad.Favourited === 1)
+    ? ads.filter(ad => ad.favourited === 1)
     : ads;
   
   const currentAd = filteredAds.length > 0 ? filteredAds[currentIndex] : null;
@@ -55,8 +55,8 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
       const modalOpen = document.querySelector(".modal-open");
       if (modalOpen) return;
 
-      if (!currentAd || !currentAd["Ad ID"]) return;
-      const adId = currentAd["Ad ID"];      
+      if (!currentAd || !currentAd.ad_id) return;
+      const adId = currentAd.ad_id;      
 
       switch (e.key) {
         case "ArrowRight":
@@ -67,7 +67,7 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
           break;
         case "f":
         case "F":
-          updateFavourite(adId, currentAd.Favourited === 1 ? 0 : 1);
+          updateFavourite(adId, currentAd.favourited === 1 ? 0 : 1);
           break;
         case "e":
         case "E":
@@ -150,14 +150,14 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
           {/* Toggle favourite */}
           <button
             onClick={() => {
-              const adId = currentAd["Ad ID"];
-              const newFaveStatus = currentAd.Favourited === 1 ? 0 : 1;
+              const adId = currentAd.ad_id;
+              const newFaveStatus = currentAd.favourited === 1 ? 0 : 1;
               updateFavourite(adId, newFaveStatus);
 
               // Auto skip to next if in filtered mode and unfavourited
               if (showFavouritesOnly && newFaveStatus === 0) {
                 setTimeout(() => {
-                  const remaining = ads.filter((ad) => ad.Favourited === 1);
+                  const remaining = ads.filter((ad) => ad.favourited === 1);
                   if (remaining.length > 0) {
                     setCurrentIndex((i) => Math.min(i, remaining.length - 1));
                   }
@@ -165,15 +165,15 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
               }
             }}
             className="text-5xl md:text-6xl text-pink-500 hover:scale-110 transition"
-            title={currentAd.Favourited === 1 ? "Unfavourite" : "Favourite"}
+            title={currentAd.favourited === 1 ? "Unfavourite" : "Favourite"}
           >
-            {currentAd.Favourited === 1 ? <FaTimes /> : <FaHeart />}
+            {currentAd.favourited === 1 ? <FaTimes /> : <FaHeart />}
           </button>
 
           {/* Exclude or disable */}
           {!showFavouritesOnly ? (
             <button
-              onClick={() => updateExclude(currentAd["Ad ID"])}
+              onClick={() => updateExclude(currentAd.ad_id)}
               className="text-5xl md:text-6xl text-red-600 hover:scale-110 transition"
               title="Exclude"
             >

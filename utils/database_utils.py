@@ -20,23 +20,25 @@ os.makedirs(DATA_DIR, exist_ok = True)
 def create_ads_table(table_name = 'ads'):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
+        # TODO: Remove whitespaces and capitalisation from these columns (CHANGE ALL ASSOCIATED REFERENCES)
         cursor.execute(f'''
                        CREATE TABLE IF NOT EXISTS {table_name} (
-                           "Ad URL" TEXT,
-                           "Ad ID" TEXT PRIMARY KEY,
-                           "Title" TEXT,
-                           "Subtitle" TEXT,
-                           "Price" TEXT,
-                           "Mileage" INTEGER,                           
-                           "Registered Year" TEXT,
-                           "Distance (miles)" INTEGER,
-                           "Location" TEXT,
-                           "Ad post date" TEXT,
-                           "Favourited" INTEGER DEFAULT 0,
-                           "Favourited timestamp" TEXT,
-                           "Excluded" INTEGER DEFAULT 0,
-                           "Excluded timestamp" TEXT,
-                           "Scraped at" TEXT                           
+                           "ad_url" TEXT,
+                           "ad_id" TEXT PRIMARY KEY,
+                           "title" TEXT,
+                           "subtitle" TEXT,
+                           "price" TEXT,
+                           "mileage" INTEGER,                           
+                           "reg_year" TEXT,
+                           "distance" INTEGER,
+                           "location" TEXT,
+                           "post_date" TEXT,
+                           "favourited" INTEGER DEFAULT 0,
+                           "favourited_date" TEXT,
+                           "excluded" INTEGER DEFAULT 0,
+                           "excluded_date" TEXT,
+                           "scrape_date" TEXT,
+                           "search_id"                           
                        )
                        ''')
         conn.commit()
@@ -143,7 +145,7 @@ def load_ads(table = 'ads'):
 def get_saved_ad_ids(table_name = 'ads'):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        cursor.execute(f"SELECT `Ad ID`, `Ad URL` FROM {table_name}")
+        cursor.execute(f"SELECT `ad_id`, `ad_url` FROM {table_name}")
         return cursor.fetchall()
 
 def get_mot_histories(ad_id = None, table_name = 'mot_history'):
@@ -184,7 +186,7 @@ def delete_ads(ids_to_remove, table_name = 'ads'):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.executemany(
-            f'DELETE FROM {table_name} WHERE "Ad ID" = ?',
+            f'DELETE FROM {table_name} WHERE "ad_id" = ?',
             [(ad_id,) for ad_id in ids_to_remove]
         )
         conn.commit()
@@ -201,17 +203,19 @@ def delete_mot_history(reg, table_name = 'mot_history'):
 def check_ad_id_exists(ad_id, table_name = 'ads'):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        cursor.execute(f"SELECT 1 FROM {table_name} WHERE \"Ad ID\" = ?", (ad_id,))
+        cursor.execute(f"SELECT 1 FROM {table_name} WHERE \"ad_id\" = ?", (ad_id,))
         return cursor.fetchone() is not None
-    
+
+# (Un-)favourite/(Un-)exclude ads    
 def update_flag(ad_id, column, value, table_name='ads'):
-    if column not in ("Favourited", "Excluded"):
+    if column not in ("favourited", "excluded"):
         raise ValueError("Invalid column")
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        cursor.execute(f'UPDATE {table_name} SET "{column}" = ? WHERE "Ad ID" = ?', (value, ad_id))
+        cursor.execute(f'UPDATE {table_name} SET "{column}" = ? WHERE "ad_id" = ?', (value, ad_id))
         conn.commit()
 
+# Link MOT History to an ad_id
 def bind_mot_to_ad(reg, ad_id, table_name = 'mot_history'):
     '''
     Returns: ad_id, ad_url
@@ -223,7 +227,8 @@ def bind_mot_to_ad(reg, ad_id, table_name = 'mot_history'):
         else:
             cursor.execute(f"UPDATE {table_name} SET ad_id = ? WHERE registration = ?", (ad_id, reg.upper()))
         conn.commit()
-        
+
+# Create all tables if don't exist         
 def ensure_tables_exist():
     create_ads_table()
     create_mot_history_table()

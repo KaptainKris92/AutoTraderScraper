@@ -16,7 +16,7 @@ export default function Favourites() {
         fetch("/api/ads")
         .then((res) => res.json())
         .then((data) => {
-            const onlyFaves = data.filter((ad) => ad.Favourited === 1 && ad.Excluded !== 1);
+            const onlyFaves = data.filter((ad) => ad.favourited === 1 && ad.excluded !== 1);
             const sorted = sortAds(onlyFaves, sortBy, sortDirection);
             setAds(sorted);
         })
@@ -29,7 +29,7 @@ export default function Favourites() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ad_id: adId, operation: "favourite", value: 0 }),
         }).then(() => {
-        setAds((prev) => prev.filter((ad) => ad["Ad ID"] !== adId));
+        setAds((prev) => prev.filter((ad) => ad.ad_id !== adId));
         });
     };
 
@@ -44,7 +44,7 @@ export default function Favourites() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ ad_id: adId, operation: "exclude", value: 1 }),
         }).then(() => {
-            setAds((prev) => prev.filter((ad) => ad["Ad ID"] !== adId));
+            setAds((prev) => prev.filter((ad) => ad.ad_id !== adId));
         });
         });
     };
@@ -67,27 +67,27 @@ export default function Favourites() {
             <ul className="space-y-4 max-w-4xl mx-auto mt-2">
             {ads.map((ad) => (
                 <li
-                key={ad["Ad ID"]}
+                key={ad.ad_id}
                 className="bg-white p-4 rounded shadow flex flex-col sm:flex-row sm:items-center justify-between"
                 >
                 <div>
-                    <h3 className="font-bold text-lg">{ad.Title}</h3>
-                    <p className="text-sm text-gray-600">{ad.Subtitle}</p>
+                    <h3 className="font-bold text-lg">{ad.title}</h3>
+                    <p className="text-sm text-gray-600">{ad.subtitle}</p>
                     <p className="text-sm mt-1">
-                    <strong>Price:</strong> {ad.Price} | <strong>Mileage:</strong> {ad.Mileage} |{" "}
-                    <strong>Year:</strong> {ad["Registered Year"]} | <strong>Distance:</strong> {ad["Distance (miles)"]} mi
-                    | <strong>Location:</strong> {ad.Location} | <strong>Posted:</strong> {ad["Ad post date"]}
+                    <strong>Price:</strong> {ad.price} | <strong>Mileage:</strong> {ad.mileage} |{" "}
+                    <strong>Year:</strong> {ad.reg_year} | <strong>Distance:</strong> {ad.distance} mi
+                    | <strong>Location:</strong> {ad.location} | <strong>Posted:</strong> {ad.post_date}
                     </p>
                 </div>
                 <div className="mt-3 sm:mt-0 sm:ml-4 space-y-2">
                     <button
-                    onClick={() => handleUnfavourite(ad["Ad ID"])}
+                    onClick={() => handleUnfavourite(ad.ad_id)}
                     className="w-full px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
                     >
                     Unfavourite
                     </button>
                     <button
-                    onClick={() => handleRemoveAndExclude(ad["Ad ID"])}
+                    onClick={() => handleRemoveAndExclude(ad.ad_id)}
                     className="w-full px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
                     >
                     Unfavourite & Exclude
