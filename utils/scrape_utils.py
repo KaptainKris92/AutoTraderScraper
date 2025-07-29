@@ -85,6 +85,7 @@ def reject_cookies(driver, timeout=15):
 # %% AutoTrader ads
 # --------------
 
+# %% FINISH generate_autotradr_url uand possible_params. The continue GPT chat ---
 possible_params = ['postcode', 
                    'radius', 
                    'make', 
@@ -121,6 +122,8 @@ def generate_autotrader_urls(params):
     mapping = {"postcode": lambda x: f"postcode={x}",
                "radius": lambda x: f"radius={x}",
                "make": lambda x: f"make={x}"}
+    
+    pass
 
 def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
     DATA_DIR.mkdir(parents=True, exist_ok=True)    
