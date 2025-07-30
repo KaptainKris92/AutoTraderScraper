@@ -1,34 +1,7 @@
-# Not including model since conditional drop-down would be too much work atm.  
-possible_params = ['postcode', 
-                   'radius', 
-                   'make',                     
-                   'min_price', 
-                   'max_price',
-                   'min_reg_year',
-                   'max_reg_year',
-                   'min_mileage', 
-                   'max_mileage',
-                   'gearbox',
-                   'body_type',
-                   'colour',
-                   'doors',
-                   'seats',
-                   'fuel type',
-                   'min_engine_size',
-                   'max_engine_size',
-                   'min_engine_power',
-                   'max_engine_power',
-                   'acceleration',
-                   'fuel_consumption',
-                   'co2_emissions',
-                   'tax_per_year',
-                   'insurance_group',
-                   'drive_type',
-                   'boot_space',
-                   'seller_type',
-                   'previously_written_off'
-                   ]
+# Storing params here for reference. Move to JS?
 
+
+# Not including model since conditional drop-down would be too much work atm.  
 search_mapping = {'postcode': lambda x: f'postcode={x}', 
                    'radius': lambda x: f'radius={x}', 
                    'make': lambda x: f'make={x}',                     

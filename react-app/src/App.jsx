@@ -3,6 +3,7 @@ import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import Favourites from "./pages/Favourites";
 import Excluded from "./pages/Excluded";
+import Settings from "./pages/Settings";
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/favourites" element={<Favourites />} />
         <Route path="/excluded" element={<Excluded />} />
+        <Route path="/settings" element={<Settings />} />
       </Routes>
     </Router>
   );
