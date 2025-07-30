@@ -43,10 +43,6 @@ export default function Settings() {
         setFormData((prev) => ({ ...prev, transmission: selected.map((s) => s.value) }));
     };
 
-    <>
-        <Slider range />
-    </>
-
     return (
         <form className="space-y-4">
         {/* Postcode */}
@@ -55,7 +51,7 @@ export default function Settings() {
             <input
             type="text"
             name="postcode"
-            maxLength={7}
+            maxLength={8}
             className="border rounded p-2 w-full"
             value={formData.postcode}
             onChange={(e) => setFormData({ ...formData, postcode: e.target.value })}
@@ -128,12 +124,14 @@ export default function Settings() {
 
         {/* Debug Preview */}
         <div className="bg-gray-100 p-4 text-sm">
-            <pre>{JSON.stringify({
+            {/* <pre>{JSON.stringify({
             ...formData,
             // price: [priceSteps[formData.priceIndex[0]], priceSteps[formData.priceIndex[1]]],
             // mileage: [mileageSteps[formData.mileageIndex[0]], mileageSteps[formData.mileageIndex[1]]],
-            }, null, 2)}</pre>
+            }, null, 2)}</pre> */}
         </div>        
+
+
 
         </form>
 
