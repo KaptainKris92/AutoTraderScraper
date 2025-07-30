@@ -1,7 +1,8 @@
 from flask import Flask, request, jsonify, send_from_directory
-from utils.database_utils import create_ads_table, update_flag, load_ads, save_mot_history, get_mot_histories, delete_mot_history, bind_mot_to_ad, ensure_tables_exist, save_caz_data, get_caz_data, save_search_params, get_search_params
+from utils.database_utils import create_ads_table, update_flag, load_ads, save_mot_history, get_mot_histories, delete_mot_history, bind_mot_to_ad, ensure_tables_exist, save_caz_data, get_caz_data, save_search_params, get_search_profiles, search_profile_exists
 from utils.mot_history import get_mot_history
 from utils.scrape_utils import download_pictures, check_caz
+from utils.search_utils import generate_autotrader_url
 from pathlib import Path
 import threading
 
@@ -120,9 +121,13 @@ def get_caz():
 #### SEARCH PROFILES ####
 
 # Retrieves all search profiles
-@app.route("/api/search-profiles")
-def get_search_profiles():
-    return jsonify(get_search_params())
+@app.route("/api/search-profile/<int:profile_id>", methods=["GET"])
+def get_profile(profile_id):
+    profile = get_search_profiles(profile_id)
+    if profile:
+        return jsonify(profile)    
+    return jsonify({"error": "Profile not found"}), 404
+
 
 
     
@@ -243,16 +248,44 @@ def api_download_pictures():
 #### SEARCH PROFILES ####
 
 # Saves user's search preferences into a profile. Ads are linked to this profile (can be linked to multiple).
-@app.route("/api/search-profile", methods = ["POST"])
+@app.route("/api/save-search-profile", methods = ["POST"])
 def save_search_profile():
-    data = request.get_json()
+    data = request.get_json()    
     name = data.get("name")
-    params = data.get("params")
+    params = data.get("params")    
+    url = data.get("generated_url")
+    existing_param_profile = search_profile_exists(params)
+    
     if not name or not params:
         return jsonify({"error": "Missing name or params"}), 400
     
-    lastrow = save_search_params(name, params)
-    return jsonify({"status": "saved", "id": lastrow})
+    if existing_param_profile:        
+        return jsonify({"error": f"Profile already exists", "name": existing_param_profile}), 409
+    
+    last_row = save_search_params(name, params, url)
+    return jsonify({"status": "saved", "id": last_row})
+
+@app.route("/api/generate-search-url", methods = ["POST"])
+def api_generature_url():
+    data = request.get_json()
+    try:
+        url = generate_autotrader_url(data)
+        return jsonify({"url": url})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+# Runs `scraper.py` with provided link to update databases
+@app.route("/api/run-scraper/<int:profile_id>", methods = ["POST"])
+def run_scraper(profile_id):
+    profile = get_search_profiles(profile_id)
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
+
+    # Scrape AutoTrader using the url for that profile
+    # threading.Thread(target = run_scraper_with_url, args=(profile['url'], )).start()
+    return jsonify({"message": f"Scraping started for profile {profile['name']}"})
+
+
 
 # %% DELETE
 # ---------
@@ -279,6 +312,8 @@ def image_count(ad_id):
         return jsonify({"count": 0})
     count = len(list(folder.glob("*.jpg")))
     return jsonify({"count": count})
+
+
 
 if __name__ == '__main__':
     create_ads_table(TABLE_NAME)

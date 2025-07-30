@@ -85,46 +85,6 @@ def reject_cookies(driver, timeout=15):
 # %% AutoTrader ads
 # --------------
 
-# %% FINISH generate_autotradr_url uand possible_params. The continue GPT chat ---
-possible_params = ['postcode', 
-                   'radius', 
-                   'make', 
-                #    'model', # Not including model since conditional drop-down would be too much work atm.  
-                   'min_price', 
-                   'max_price',
-                   'min_reg_year',
-                   'max_reg_year',
-                   'min_mileage', 
-                   'max_mileage',
-                   'gearbox',
-                   'body_type',
-                   'colour',
-                   'doors',
-                   'seats',
-                   'fuel type',
-                   'min_engine_size',
-                   'max_engine_size',
-                   'min_engine_power',
-                   'max_engine_power',
-                   'acceleration',
-                   'fuel_consumption',
-                   'co2_emissions',
-                   'tax_per_year',
-                   'insurance_group',
-                   'drive_type',
-                   'boot_space',
-                   'seller_type',
-                   'previously_written_off'
-                   ]
-
-def generate_autotrader_urls(params):
-    base = "https://www.autotrader.co.uk/car-search?"
-    mapping = {"postcode": lambda x: f"postcode={x}",
-               "radius": lambda x: f"radius={x}",
-               "make": lambda x: f"make={x}"}
-    
-    pass
-
 def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
     DATA_DIR.mkdir(parents=True, exist_ok=True)    
     driver = create_stealth_driver(headless = True, url = AUTOTRADER_URL)    

@@ -78,13 +78,14 @@ def create_caz_table(table_name='caz'):
 def create_search_profiles_table():
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute('''
-                     CREATE TABLE IF NOT EXISTS search_profiles (
-                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                         name TEXT NOT NULL,
-                         params_json TEXT NOT NULL,
-                         created_at TEXT DEFAULT CURRENT_TIMESTAMP
-                     )
-                     ''')
+                    CREATE TABLE IF NOT EXISTS search_profiles (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL,
+                        params TEXT NOT NULL,
+                        generated_url TEXT,
+                        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                    )
+                    ''')
 
 # %% Save to tables
 # ------------------
@@ -133,15 +134,16 @@ def save_mot_history(reg, data, ad_id = None, table_name = 'mot_history'):
         conn.commit()
 
 # Saves user search settings into a profile        
-def save_search_params(name, params):
+def save_search_params(name, params, generated_url=None):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
+        timestamp = datetime.now().isoformat()
         cursor.execute(
-            "INSERT INTO search_profiles (name, params_json) VALUES (?, ?)",
-            (name, json.dumps(params))
+            "INSERT INTO search_profiles (name, params, generated_url, created_at) VALUES (?, ?, ?, ?)",
+            (name, json.dumps(params, sort_keys = True), generated_url, timestamp)
         )
         conn.commit()
-        return cursor.lastrowid        
+        return cursor.lastrowid
         
 
 # %% Retrieve data from tables
@@ -190,17 +192,35 @@ def get_caz_data(registration, table_name="caz"):
             for row in rows
         ]
 
-def get_search_params():
+def get_search_profiles(profile_id):
     with sqlite3.connect(DB_PATH) as conn:
-        profiles = conn.execute("SELECT id, name, params_json FROM search_profiles").fetchall()
-        return [
-            {
-                "id": row[0],
-                "name": row[1],
-                "params": json.loads(row[2])
-            }
-            for row in profiles
-        ]
+        cursor = conn.cursor()
+        if profile_id:
+            cursor.execute("SELECT id, name, params_json, generated_url FROM search_profiles WHERE id = ?", (profile_id,))
+        else:
+            cursor.execute("SELECT * FROM search_profiles")
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return {
+            "id": row[0],
+            "name": row[1],
+            "params": json.loads(row[2]),
+            "url": row[3]
+        }
+        
+# Checks if search parameter combo already in database
+def search_profile_exists(params):
+    params_json = json.dumps(params, sort_keys = True)
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT name from search_profiles WHERE params = ?",
+            (params_json,)        
+        )
+        row = cursor.fetchone()
+        return row[0] if row else None
+
 # %% Delete rows from tables
 # ---------------------------
 
