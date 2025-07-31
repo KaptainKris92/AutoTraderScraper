@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, send_from_directory
-from utils.database_utils import create_ads_table, update_flag, load_ads, save_mot_history, get_mot_histories, delete_mot_history, bind_mot_to_ad, ensure_tables_exist, save_caz_data, get_caz_data, save_search_params, get_search_profiles, search_profile_exists
+from utils.database_utils import create_ads_table, update_flag, load_ads, save_mot_history, get_mot_histories, delete_mot_history, bind_mot_to_ad, ensure_tables_exist, save_caz_data, get_caz_data, save_search_params, get_search_profiles, search_profile_exists, save_ads_data
 from utils.mot_history import get_mot_history
-from utils.scrape_utils import download_pictures, check_caz
+from utils.scrape_utils import download_pictures, check_caz, scrape_autotrader
 from utils.search_utils import generate_autotrader_url
 from pathlib import Path
 import threading
@@ -310,11 +310,20 @@ def save_search_profile():
 @app.route("/api/run-scraper/<int:profile_id>", methods=["POST"])
 def run_scraper(profile_id):
     profile = get_search_profiles(profile_id)
+
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
 
+    url = profile.get('url')
+    search_id = profile.get('id')
+    df = scrape_autotrader(url, max_scrolls=9_999_999)
+    df['search_id'] = search_id
+    save_ads_data(df, 'ads')
+
     # Scrape AutoTrader using the url for that profile
-    # threading.Thread(target = run_scraper_with_url, args=(profile['url'], )).start()
+    # threading.Thread(target=run_scraper_with_url,
+    #                  args=(profile['url'], )).start()
+
     return jsonify({"message": f"Scraping started for profile {profile['name']}"})
 
 

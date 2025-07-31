@@ -1,78 +1,89 @@
+from utils.general_utils import extract_post_date
+from utils.database_utils import check_ad_id_exists, get_saved_ad_ids, delete_ads, load_ads
+from selenium_stealth import stealth
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium import webdriver
 import pandas as pd
-import os, time, re, requests, hashlib
+import os
+import time
+import re
+import requests
+import hashlib
 from datetime import datetime
 from pathlib import Path
 
 # Silence warnings/errors
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # Silence Tensorflow warnings: 0 = all logs, 1 = filter INFO, 2 = filter WARNING, 3 = filter ERROR
+# Silence Tensorflow warnings: 0 = all logs, 1 = filter INFO, 2 = filter WARNING, 3 = filter ERROR
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium_stealth import stealth
 
 # Database functions
-from utils.database_utils import check_ad_id_exists, get_saved_ad_ids, delete_ads, load_ads
-from utils.general_utils import extract_post_date
 
 # TODO: Avoid needing these parameters here. Add to scraper.py instead, or when implementing changing search filters
 # With filters: Under £5k, within 50 miles of Caerphilly, Automatic transmission, <125k miles
 AUTOTRADER_URL = 'https://www.autotrader.co.uk/car-search?maximum-mileage=125000&postcode=CF83%208TF&price-to=5000&radius=50&sort=relevance&transmission=Automatic'
-DEFAULT_MAX_SCROLLS = 1 # Maybe default should be all ads possible?
+DEFAULT_MAX_SCROLLS = 1  # Maybe default should be all ads possible?
 TABLE_NAME = 'ads'
 DATA_DIR = Path('data')
 
 # %% General scraping functions
 # ------------------
 
-def create_stealth_driver(headless=True, url = AUTOTRADER_URL):
+
+def create_stealth_driver(headless=True, url=AUTOTRADER_URL):
     options = Options()
     if headless:
-        options.add_argument("--headless=new")      
+        options.add_argument("--headless=new")
     options.add_argument("--window-size=1920,1080")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--log-level-3") # Suppresses all but fatal logs
+    options.add_argument("--log-level-3")  # Suppresses all but fatal logs
     options.add_argument("--disable-logging")
-    options.add_argument("--disable-software-rasterizer")    
-    options.add_argument("--disable-features=UseModernMediaControls,SyncService")
+    options.add_argument("--disable-software-rasterizer")
+    options.add_argument(
+        "--disable-features=UseModernMediaControls,SyncService")
     options.add_argument("--disable-gl-drawing-for-tests")
     options.add_experimental_option("excludeSwitches", ["enable-logging"])
-    
-    service = Service(ChromeDriverManager().install(), log_path = os.devnull)
+
+    service = Service(ChromeDriverManager().install(), log_path=os.devnull)
     driver = webdriver.Chrome(service=service, options=options)
 
     # Apply stealth settings
     stealth(driver,
-        languages=["en-GB", "en"],
-        vendor="Google Inc.",
-        platform="Win32",
-        webgl_vendor="Intel Inc.",
-        renderer="Intel Iris OpenGL Engine",
-        fix_hairline=True,
-    )    
-    
+            languages=["en-GB", "en"],
+            vendor="Google Inc.",
+            platform="Win32",
+            webgl_vendor="Intel Inc.",
+            renderer="Intel Iris OpenGL Engine",
+            fix_hairline=True,
+            )
+
     driver.get(url)
-    
+
     return driver
+
 
 def reject_cookies(driver, timeout=15):
     try:
         # Wait for iframe containing the cookie modal
         WebDriverWait(driver, timeout).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "iframe[src*='consent']"))
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "iframe[src*='consent']"))
         )
         iframe = driver.find_element(By.CSS_SELECTOR, "iframe[src*='consent']")
         driver.switch_to.frame(iframe)
 
         # Wait for the Reject All button inside the iframe
         WebDriverWait(driver, timeout).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Reject All')]"))
+            EC.element_to_be_clickable(
+                (By.XPATH, "//button[contains(text(), 'Reject All')]"))
         )
-        reject_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Reject All')]")
+        reject_button = driver.find_element(
+            By.XPATH, "//button[contains(text(), 'Reject All')]")
         driver.execute_script("arguments[0].click();", reject_button)
         print("✅ Clicked 'Reject All' cookie button inside iframe.")
 
@@ -85,16 +96,22 @@ def reject_cookies(driver, timeout=15):
 # %% AutoTrader ads
 # --------------
 
-def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
-    DATA_DIR.mkdir(parents=True, exist_ok=True)    
-    driver = create_stealth_driver(headless = True, url = AUTOTRADER_URL)    
+
+def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS):
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    if not url:
+        return None
+
+    driver = create_stealth_driver(headless=True, url=url)
     reject_cookies(driver)
-    time.sleep(3) # Give the page time to render listings
+    time.sleep(3)  # Give the page time to render listings
 
     # Wait until at least one car listing is loaded
     try:
         WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-testid='advertCard']"))
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "div[data-testid='advertCard']"))
         )
         print("Listings loaded.")
     except:
@@ -106,11 +123,14 @@ def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
     # Scroll to bottom until no new content appears (stop at MAX_SCROLLS)
     scroll_pause_time = 2.5
     for i in range(max_scrolls):
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        
-        prev_count = len(driver.find_elements(By.CSS_SELECTOR, "div[data-testid='advertCard']"))
+        driver.execute_script(
+            "window.scrollTo(0, document.body.scrollHeight);")
+
+        prev_count = len(driver.find_elements(
+            By.CSS_SELECTOR, "div[data-testid='advertCard']"))
         time.sleep(scroll_pause_time)
-        new_count = len(driver.find_elements(By.CSS_SELECTOR, "div[data-testid='advertCard']"))
+        new_count = len(driver.find_elements(
+            By.CSS_SELECTOR, "div[data-testid='advertCard']"))
 
         if new_count == prev_count:
             print(f"🔄 No new listings detected after scroll #{i+1}. Stopping.")
@@ -119,77 +139,88 @@ def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
         print("⚠️ Max scrolls reached, may still be incomplete.")
 
     car_data = []
-    listings = driver.find_elements(By.CSS_SELECTOR, "div[data-testid='advertCard']")
+    listings = driver.find_elements(
+        By.CSS_SELECTOR, "div[data-testid='advertCard']")
     print(f"🛻 Found {len(listings)} car listings after scrolling.")
-    
+
     # Extract listings info
-    for listing in listings: 
+    for listing in listings:
         try:
-            title_elem = listing.find_element(By.CSS_SELECTOR, "a[data-testid='search-listing-title']")
-            thumbnail_elem = listing.find_element(By.CSS_SELECTOR, "img.main-image")
+            title_elem = listing.find_element(
+                By.CSS_SELECTOR, "a[data-testid='search-listing-title']")
+            thumbnail_elem = listing.find_element(
+                By.CSS_SELECTOR, "img.main-image")
             thumbnail_url = thumbnail_elem.get_attribute("src")
             href = title_elem.get_attribute("href")
             base_href = href.split("?")[0]  # Remove everything after '?'
-            ad_url = "https://www.autotrader.co.uk" + base_href if base_href.startswith("/") else base_href
+            ad_url = "https://www.autotrader.co.uk" + \
+                base_href if base_href.startswith("/") else base_href
         except:
-            ad_url = ""        
-            thumbnail_url = None            
-            
-            
+            ad_url = ""
+            thumbnail_url = None
+
         # Generate stable ad_id
-        ad_id = hashlib.md5(ad_url.encode('utf-8')).hexdigest()[:10] if ad_url else ""
-        
+        ad_id = hashlib.md5(ad_url.encode(
+            'utf-8')).hexdigest()[:10] if ad_url else ""
+
         if check_ad_id_exists(ad_id, TABLE_NAME):
-            continue        
-        
+            continue
+
         if thumbnail_url:
             print(f'📸 Attempting thumbnail download for {ad_id}')
             download_thumbnail(ad_id, thumbnail_url)
-            
+
         try:
             post_date = extract_post_date(ad_url)
         except:
             post_date = ""
-        
+
         try:
-            title = listing.find_element(By.CSS_SELECTOR, "[data-testid='search-listing-title']").text
+            title = listing.find_element(
+                By.CSS_SELECTOR, "[data-testid='search-listing-title']").text
         except:
             title = ""
-                    
+
         try:
-            price_elem = listing.find_element(By.CSS_SELECTOR, "div[class*='at__sc-u4ap7c-12'] span")
+            price_elem = listing.find_element(
+                By.CSS_SELECTOR, "div[class*='at__sc-u4ap7c-12'] span")
             price = price_elem.text.strip()
         except:
             price = ""
 
         try:
-            subtitle = listing.find_element(By.CSS_SELECTOR, "[data-testid='search-listing-subtitle']").text
+            subtitle = listing.find_element(
+                By.CSS_SELECTOR, "[data-testid='search-listing-subtitle']").text
         except:
             subtitle = ""
 
         try:
-            mileage = listing.find_element(By.CSS_SELECTOR, "[data-testid='mileage']").text
+            mileage = listing.find_element(
+                By.CSS_SELECTOR, "[data-testid='mileage']").text
         except:
             mileage = ""
-            
+
         # Convert mileage to numeric
         mileage_numeric = ""
         if mileage:
             try:
-                mileage_numeric = int(mileage.lower().replace("miles", "").replace(",", "").strip())
+                mileage_numeric = int(mileage.lower().replace(
+                    "miles", "").replace(",", "").strip())
             except:
                 pass
 
         try:
-            reg_year = listing.find_element(By.CSS_SELECTOR, "[data-testid='registered_year']").text
+            reg_year = listing.find_element(
+                By.CSS_SELECTOR, "[data-testid='registered_year']").text
         except:
             reg_year = ""
 
         try:
-            location = listing.find_element(By.CSS_SELECTOR, "[data-testid='search-listing-location']").text
+            location = listing.find_element(
+                By.CSS_SELECTOR, "[data-testid='search-listing-location']").text
         except:
             location = ""
-            
+
         loc_match = re.match(r"(.+?)\s*\((\d+)\s*miles\)", location)
         if loc_match:
             city, dist = loc_match.groups()
@@ -199,7 +230,7 @@ def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
                 dist = None
         else:
             city, dist = None, None
-            
+
         # Remove subtitle and price from title if present
         cleaned_title = title
         if subtitle and subtitle in cleaned_title:
@@ -223,23 +254,23 @@ def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
             'post_date': post_date,
             'favourited': 0,
             'excluded': 0,
-            'scrape_date': datetime.now().strftime("%Y-%m-%d %H:%M:%S")                                
+            'scrape_date': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
-        
+
         if not title:
             print("⚠️ Skipped listing with missing title or fields.")
-            
+
     driver.quit()
 
     df = pd.DataFrame(car_data)
-    df = df.drop_duplicates(subset = 'ad_id')
-    
+    df = df.drop_duplicates(subset='ad_id')
+
     # Remove any ads no longer listed
     live_ad_ids = set(df['ad_id'])
     saved_ads = load_ads(TABLE_NAME)
     saved_ad_ids = set(ad['ad_id'] for ad in saved_ads)
     to_remove = saved_ad_ids - live_ad_ids
-    
+
     if to_remove:
         print(f'🗑️ Removing {len(to_remove)} ads no longer listed.')
         delete_ads(to_remove, TABLE_NAME)
@@ -265,7 +296,6 @@ def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
                 except Exception as e:
                     print(f"⚠️ Could not delete image folder for {ad_id}: {e}")
 
-    
     if save_to_excel:
         file_path = DATA_DIR / f"cars_{datetime.now().date()}.xlsx"
         df.to_excel(file_path, index=False)
@@ -274,6 +304,8 @@ def scrape_autotrader(save_to_excel = True, max_scrolls = DEFAULT_MAX_SCROLLS):
 
 # %% AutoTrader images
 # ---------------------
+
+
 def extract_highest_res_images(ad_urls):
     pattern = re.compile(r"/w(\d+)/([a-f0-9]+)\.jpg")
     best_images = {}
@@ -285,42 +317,45 @@ def extract_highest_res_images(ad_urls):
             key = match.group(2)  # hash name of image
             if key not in best_images or width > best_images[key][0]:
                 best_images[key] = (width, url)
-    
+
     return [info[1] for info in best_images.values()]
 
-def download_thumbnail(ad_id, thumbnail_url, save_dir = 'thumbnails'):
-    Path(save_dir).mkdir(parents = True, exist_ok = True)
+
+def download_thumbnail(ad_id, thumbnail_url, save_dir='thumbnails'):
+    Path(save_dir).mkdir(parents=True, exist_ok=True)
     try:
-        response = requests.get(thumbnail_url, timeout = 10)
+        response = requests.get(thumbnail_url, timeout=10)
         if response.status_code == 200:
             save_path = Path(save_dir) / f"{ad_id}.jpg"
             with open(save_path, 'wb') as f:
                 f.write(response.content)
             print(f'✅ Saved thumbnail to {save_path}')
         else:
-            print(f'❌ Failed to download image for {ad_id}, status {response.status_code}')     
+            print(
+                f'❌ Failed to download image for {ad_id}, status {response.status_code}')
     except Exception as e:
         print(f"❌ Error downloading thumbnail for {ad_id}: {e}")
-        
-def download_missing_images(limit = None):
+
+
+def download_missing_images(limit=None):
     ad_ids = get_saved_ad_ids()
 
     # Maybe sort according to time saved
     if limit:
         ad_ids = ad_ids[:limit]
-            
+
     for ad_id, ad_url in ad_ids:
-        
+
         if not ad_url or not ad_id:
             print(f'⚠️ Skipping entry with missing ad_id or ad_url')
             continue
-    
+
         folder = Path("images") / ad_id
-        
+
         if (folder / "01.jpg").exists():
             print(f'✅ Images already downloaded for {ad_id}. Skipping.')
             continue
-        
+
         print(f'Downloading images for {ad_id}')
         try:
             download_pictures(ad_id, ad_url)
@@ -329,75 +364,82 @@ def download_missing_images(limit = None):
             with open('failed_downloads.log', 'a', encoding='utf-8') as log:
                 log.write(f'{ad_id}, {ad_url}\n')
 
-def download_pictures(ad_id, ad_url, progress_callback = None):
+
+def download_pictures(ad_id, ad_url, progress_callback=None):
     folder = Path("images") / ad_id
     folder.mkdir(parents=True, exist_ok=True)
-    
+
     if progress_callback:
-        progress_callback('Launching browser...')    
-    driver = create_stealth_driver(headless = True, url = ad_url)
-    
+        progress_callback('Launching browser...')
+    driver = create_stealth_driver(headless=True, url=ad_url)
+
     if progress_callback:
         progress_callback('Rejecting cookies...')
     reject_cookies(driver)
 
-    try:        
+    try:
         if progress_callback:
             progress_callback('Clicking ad image thumbnail...')
-        
-        time.sleep(1)  
 
-        # Click a thumbnail on ad page instead of the 'View gallery' button        
+        time.sleep(1)
+
+        # Click a thumbnail on ad page instead of the 'View gallery' button
         thumb = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-testid^='open-carousel']"))
+            EC.element_to_be_clickable(
+                (By.CSS_SELECTOR, "button[data-testid^='open-carousel']"))
         )
-        driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", thumb)
+        driver.execute_script(
+            "arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", thumb)
         time.sleep(0.5)
-        
+
         # Check for overlays
-        driver.execute_script("window.scrollBy(0, -100);") # Nudge view up
+        driver.execute_script("window.scrollBy(0, -100);")  # Nudge view up
         WebDriverWait(driver, 5).until(EC.visibility_of(thumb))
-        
+
         # Click via JS to bypass any overlays
         driver.execute_script('arguments[0].click();', thumb)
-    
+
         print(f"✅ Clicked thumbnail to open gallery for {ad_id}")
-        
+
     except Exception as e:
         print(f"⚠️ Failed to click thumbnail for {ad_id}: {e}")
         driver.save_screenshot(f"screenshots/error_click_{ad_id}.png")
         driver.quit()
         return
-    
-    # Extract image URLs    
-    try:   
+
+    # Extract image URLs
+    try:
         if progress_callback:
             progress_callback('Extracting image URLs...')
-        
+
         # Wait for modal to load
         WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='dialog'] img"))
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "div[role='dialog'] img"))
         )
-        
+
         time.sleep(1)  # Ensure images fully render
-        
-        image_elements = driver.find_elements(By.CSS_SELECTOR, "div[role='dialog'] picture source")
-        
+
+        image_elements = driver.find_elements(
+            By.CSS_SELECTOR, "div[role='dialog'] picture source")
+
         srcset_urls = []
         for elem in image_elements:
-            srcset = elem.get_attribute('srcset')     
+            srcset = elem.get_attribute('srcset')
             if srcset:
-                urls = [s.strip().split(" ")[0] for s in srcset.split(",") if "media" in s]
+                urls = [s.strip().split(" ")[0]
+                        for s in srcset.split(",") if "media" in s]
                 srcset_urls.extend(urls)
-                
+
         img_urls = extract_highest_res_images(srcset_urls)
-        
+
         if progress_callback:
             progress_callback(0, len(img_urls))
-        
+
         if not img_urls:
             print("⚠️ No modal image URLs found, falling back to thumbnails.")
-            thumb_elements = driver.find_elements(By.CSS_SELECTOR, "img.ImageGalleryImage__image")
+            thumb_elements = driver.find_elements(
+                By.CSS_SELECTOR, "img.ImageGalleryImage__image")
             img_urls = list({
                 img.get_attribute("src")
                 for img in thumb_elements
@@ -407,9 +449,9 @@ def download_pictures(ad_id, ad_url, progress_callback = None):
     except Exception as e:
         print(f"⚠️ Could not extract image URLs for {ad_id}: {e}")
         img_urls = []
-        
-    total_images = len(img_urls)        
-    
+
+    total_images = len(img_urls)
+
     if progress_callback:
         progress_callback(f'Downloading {total_images} image(s)...')
 
@@ -419,11 +461,11 @@ def download_pictures(ad_id, ad_url, progress_callback = None):
             img_data = requests.get(img_url, timeout=10).content
             with open(folder / f"{i+1:02}.jpg", "wb") as f:
                 f.write(img_data)
-                
+
             # Call progress callback to get how many images downloaded out of total
             if progress_callback:
                 progress_callback(i + 1, total_images)
-                
+
         except Exception as e:
             print(f"❌ Failed to download image {i+1} for {ad_id}: {e}")
 
@@ -433,20 +475,24 @@ def download_pictures(ad_id, ad_url, progress_callback = None):
 # %% CAZ
 # -------
 
-def check_caz(registration="FL56DPZ"):    
-    driver = create_stealth_driver(headless = True, url = "https://multiple-vehiclecheck-pay.drive-clean-air-zone.service.gov.uk/what_would_you_like_to_do")
+
+def check_caz(registration="FL56DPZ"):
+    driver = create_stealth_driver(
+        headless=True, url="https://multiple-vehiclecheck-pay.drive-clean-air-zone.service.gov.uk/what_would_you_like_to_do")
 
     try:
         wait = WebDriverWait(driver, 15)
-        driver.get("https://multiple-vehiclecheck-pay.drive-clean-air-zone.service.gov.uk/what_would_you_like_to_do")
+        driver.get(
+            "https://multiple-vehiclecheck-pay.drive-clean-air-zone.service.gov.uk/what_would_you_like_to_do")
         time.sleep(2)
-        
+
         # Step 1: Choose "Check a vehicle" and Continue
         print('Page 1')
-        try:            
-            # print('Finding "Check a vehicle" radio button...')                        
+        try:
+            # print('Finding "Check a vehicle" radio button...')
             check_vehicle_label = wait.until(
-                EC.element_to_be_clickable((By.XPATH, "//label[strong[text()='Check a vehicle']]"))
+                EC.element_to_be_clickable(
+                    (By.XPATH, "//label[strong[text()='Check a vehicle']]"))
             )
             check_vehicle_label.click()
             # print('✔ Selected "Check a vehicle".')
@@ -455,57 +501,65 @@ def check_caz(registration="FL56DPZ"):
             # with open("debug_page.html", "w", encoding="utf-8") as f:
             #     f.write(driver.page_source)
             raise e
-        
+
         try:
             # print('Finding "Continue" button...')
-            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input[type='submit']"))).click()
+            wait.until(EC.element_to_be_clickable(
+                (By.CSS_SELECTOR, "input[type='submit']"))).click()
             # print('✔ Clicked "Continue".')
         except Exception as e:
             # print("❌ Could not find or click 'Continue' button")
             # with open("debug_page.html", "w", encoding="utf-8") as f:
             #     f.write(driver.page_source)
-            raise e        
-        
+            raise e
+
         time.sleep(2)
-        
+
         # Step 2: Enter registration number and select 'UK'
         print('Page 2')
         try:
             # print('Trying to enter registration...')
-            wait.until(EC.presence_of_element_located((By.ID, "vrn"))).send_keys(registration)
+            wait.until(EC.presence_of_element_located(
+                (By.ID, "vrn"))).send_keys(registration)
             # print('✔ Registration entered. Trying to find "UK" radio button')
-            driver.find_element(By.ID, "registration-country-1").click()  # UK is default
+            driver.find_element(
+                By.ID, "registration-country-1").click()  # UK is default
             # print('✔ "UK" radio button selected. Trying to find "Continue" button')
-            driver.find_element(By.CSS_SELECTOR, "input[type='submit']").click()
+            driver.find_element(
+                By.CSS_SELECTOR, "input[type='submit']").click()
             # print('✔ "Continue" button clicked')
         except Exception as e:
             # print("❌ Could not enter reg, select 'UK' or click 'Continue' button")
             # with open("debug_page.html", "w", encoding="utf-8") as f:
             #     f.write(driver.page_source)
             raise e
-        
+
         # Step 3: Confirm vehicle details
         print('Page 3')
         try:
-            wait.until(EC.presence_of_element_located((By.ID, "confirm_details-1")))
+            wait.until(EC.presence_of_element_located(
+                (By.ID, "confirm_details-1")))
             # print('Finding "Yes" radio button...')
             confirm_radio = driver.find_element(By.ID, "confirm_details-1")
             driver.execute_script("arguments[0].click();", confirm_radio)
             # print('✔ "Yes" confirmation selected. Finding "Confirm" button.')
-            driver.find_element(By.CSS_SELECTOR, "input[type='submit']").click()
+            driver.find_element(
+                By.CSS_SELECTOR, "input[type='submit']").click()
             # print('✔ "Confirm" button clicked.')
         except Exception as e:
             # print("❌ Could not confirm details")
             # with open("debug_page.html", "w", encoding="utf-8") as f:
             #     f.write(driver.page_source)
-            raise e       
-        
+            raise e
+
         # Step 4: Scrape results table
         print('Page 4 (Final)')
-        
+
         try:
-            wait.until(EC.presence_of_element_located((By.ID, "compliance-table")))
-            rows = driver.find_elements(By.CSS_SELECTOR, "#compliance-table tbody tr")
+            wait.until(EC.presence_of_element_located(
+                (By.ID, "compliance-table")))
+            rows = driver.find_elements(
+                By.CSS_SELECTOR, "#compliance-table tbody tr")
 
             results = []
             for row in rows:
@@ -516,12 +570,12 @@ def check_caz(registration="FL56DPZ"):
                     "Zone Live": cols[2].text.strip(),
                     "Map URL": cols[3].find_element(By.TAG_NAME, "a").get_attribute("href"),
                     "Exemptions URL": cols[4].find_element(By.TAG_NAME, "a").get_attribute("href")
-                })                    
+                })
         except Exception as e:
             print("❌ Could not scrape results table")
             with open("debug_page.html", "w", encoding="utf-8") as f:
                 f.write(driver.page_source)
-            raise e       
+            raise e
 
         return results
 
