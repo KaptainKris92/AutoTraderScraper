@@ -36,7 +36,7 @@ export default function AdCard({ ad }) {
     // Fetch the bound registration number
   const fetchBoundReg = async () => {
     try {
-      const res = await fetch(`/api/mot_history?ad_id=${ad["Ad ID"]}`);
+      const res = await fetch(`/api/mot_history?ad_id=${ad.ad_id}`);
       if (!res.ok) {
         throw new Error(`Server responded with status ${res.status}`);
       }
@@ -55,7 +55,7 @@ export default function AdCard({ ad }) {
   // Get correct bound reg for each ad
   useEffect(() => {
     fetchBoundReg();
-  }, [ad["Ad ID"]]);
+  }, [ad.ad_id]);
 
   // Unbinding reg numbers
   const handleUnbind = async () => {
@@ -106,7 +106,7 @@ export default function AdCard({ ad }) {
 
   // Show thumbnail for each ad
   useEffect(() => {
-    setCurrentThumb(`/api/thumbnail/${ad["Ad ID"]}`);
+    setCurrentThumb(`/api/thumbnail/${ad.ad_id}`);
     setThumbnailMissing(false); // Reset any missing-state
   }, [ad]);
 
@@ -118,7 +118,7 @@ export default function AdCard({ ad }) {
 
     try {
       // 🔍 Check if images already exist
-      const res = await fetch(`/api/image-count/${ad["Ad ID"]}`);
+      const res = await fetch(`/api/image-count/${ad.ad_id}`);
       const { count } = await res.json();
 
       if (count > 0) {
@@ -132,7 +132,7 @@ export default function AdCard({ ad }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ad_id: ad["Ad ID"],
+          ad_id: ad.ad_id,
           ad_url: ad.ad_url,
         }),
       });
@@ -145,7 +145,7 @@ export default function AdCard({ ad }) {
       let tries = 0;
       let finalCount = 0;
       while (tries < 20) {
-        const pollRes = await fetch(`/api/image-count/${ad["Ad ID"]}`);
+        const pollRes = await fetch(`/api/image-count/${ad.ad_id}`);
         const { count: currentCount } = await pollRes.json();
         if (currentCount > 0) {
           finalCount = currentCount;
@@ -187,14 +187,18 @@ export default function AdCard({ ad }) {
   const [imageCount, setImageCount] = useState(0);
   const [downloading, setDownloading] = useState(false);
 
-  if (!ad || Object.keys(ad).length === 0) {
-    return <div className="text-center p-4">Invalid ad data</div>;
+  // if (!ad || Object.keys(ad).length === 0) {
+  //   return <div className="text-center p-4">Invalid ad data</div>;
+  // }
+  if (!ad || !ad.ad_id) {
+    return <div className="text-center p-4">Loading ad...</div>;
   }
+
 
   useEffect(() => {
     async function fetchImageCount() {
       try {
-        const res = await fetch(`/api/image-count/${ad["Ad ID"]}`);
+        const res = await fetch(`/api/image-count/${ad.ad_id}`);
         const data = await res.json();
         setImageCount(data.count);
       } catch (err) {
@@ -203,7 +207,7 @@ export default function AdCard({ ad }) {
     }
 
     fetchImageCount();
-  }, [ad["Ad ID"]]);
+  }, [ad.ad_id]);
 
   // --------
   // RETURN
@@ -224,7 +228,7 @@ export default function AdCard({ ad }) {
               alt={`Thumbnail for ${ad?.title || "car"}`}
               className="w-full h-full object-contain rounded-t-lg bg-white p-2"
               onError={() => {
-                console.log(`Thumbnail for ${ad["Ad ID"]} is missing.`);
+                console.log(`Thumbnail for ${ad.ad_id} is missing.`);
                 setThumbnailMissing(true);
               }}
               onClick={handleThumbnailClick}
@@ -368,7 +372,7 @@ export default function AdCard({ ad }) {
         {/* Bind MOT History to Ad modal */}
         {showBindModal && (
           <BindMOTModal
-            adId={ad["Ad ID"]}
+            adId={ad.ad_id}
             onClose={() => setShowBindModal(false)}
             onBindSuccess={fetchBoundReg}
           />
@@ -381,7 +385,7 @@ export default function AdCard({ ad }) {
               setShowMOTModal(false);
               fetchBoundReg(); // Refresh boundReg when modal closes
             }}
-            adId={ad["Ad ID"]}
+            adId={ad.ad_id}
             initialReg={boundReg}
           />
         )}
@@ -389,7 +393,7 @@ export default function AdCard({ ad }) {
         {/* Gallery viewer */}
         {modalVisible && (
           <GalleryViewer
-            adId={ad["Ad ID"]}
+            adId={ad.ad_id}
             onClose={() => setModalVisible(false)}
             onImageChange={(img) => setCurrentThumb(img)}
             ready={galleryReady}
