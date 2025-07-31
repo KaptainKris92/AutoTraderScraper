@@ -472,7 +472,7 @@ export default function Settings() {
       setProfiles(data.profiles);
     };
     fetchProfiles();
-  });
+  }, []); // THe `[]` means it only runs once on intiial mount
 
   const handleSave = async () => {
     const payload = { ...formData, name: profileName, url: generatedUrl };

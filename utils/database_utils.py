@@ -100,8 +100,11 @@ def create_search_profiles_table():
 
 
 def save_ads_data(data, table_name='ads'):
+    df = pd.DataFrame(data)
     with sqlite3.connect(DB_PATH) as conn:
-        df = pd.DataFrame(data)
+        existing_ids = pd.read_sql(f'SELECT ad_id FROM {table_name}', conn)[
+            'ad_id'].tolist()
+        df = df[~df['ad_id'].isin(existing_ids)]  # Drops duplicate IDs
         df.to_sql(table_name, conn, if_exists='append', index=False)
 
 # CAZ website results table
