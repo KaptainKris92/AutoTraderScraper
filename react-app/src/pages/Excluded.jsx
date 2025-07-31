@@ -15,8 +15,8 @@ export default function Excluded() {
     useEffect(() => {
         fetch("/api/ads")
         .then((res) => res.json())
-        .then((data) => {
-            const onlyExcluded = data.filter((ad) => ad.excluded === 1);
+        .then((res) => {
+            const onlyExcluded = res.data.filter((ad) => ad.excluded === 1);
             const sorted = sortAds(onlyExcluded, sortBy, sortDirection);
             setAds(sorted);
         })

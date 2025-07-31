@@ -14,9 +14,9 @@ export default function Favourites() {
 
     useEffect(() => {
         fetch("/api/ads")
-        .then((res) => res.json())
-        .then((data) => {
-            const onlyFaves = data.filter((ad) => ad.favourited === 1 && ad.excluded !== 1);
+        .then((res) => res.json())        
+        .then((res) => {
+            const onlyFaves = res.data.filter((ad) => ad.favourited === 1 && ad.excluded !== 1);
             const sorted = sortAds(onlyFaves, sortBy, sortDirection);
             setAds(sorted);
         })
