@@ -517,6 +517,19 @@ export default function Settings() {
     }
   };  
 
+
+  // Format `created_at` date
+  function formatDate(dateStr) {
+    if (!dateStr) return "Unknown date";
+    const trimmed = dateStr.split(".")[0]; // Remove microseconds so JS can process it
+    const date = new Date(trimmed);
+    return isNaN(date.getTime()) ? "Unknown date" : date.toLocaleDateString("en-GB", {
+      year: "numeric",
+      month: "short",
+      day: "numeric"
+    });
+  }
+
   return (
     <div className="flex">
 
@@ -539,7 +552,7 @@ export default function Settings() {
               >
                 <span className="font-medium">{p.name}</span>
                 <span className="text-sm text-gray-500">
-                  {new Date(p.created_at).toLocaleDateString()}
+                  {formatDate(p.created_at)}
                 </span>
               </div>
               <div className="flex gap-2 mt-2">

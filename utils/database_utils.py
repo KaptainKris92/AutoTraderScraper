@@ -222,7 +222,7 @@ def get_search_profiles(profile_id=None):
 
         if profile_id is not None:
             cursor.execute(
-                "SELECT id, name, params, generated_url FROM search_profiles WHERE id = ?", (profile_id,))
+                "SELECT id, name, params, generated_url, created_at FROM search_profiles WHERE id = ?", (profile_id,))
             row = cursor.fetchone()
             if not row:
                 return None
@@ -230,18 +230,20 @@ def get_search_profiles(profile_id=None):
                 "id": row[0],
                 "name": row[1],
                 "params": json.loads(row[2]),
-                "url": row[3]
+                "url": row[3],
+                "created_at": row[4]
             }
         else:
             cursor.execute(
-                "SELECT id, name, params, generated_url FROM search_profiles")
+                "SELECT id, name, params, generated_url, created_at FROM search_profiles")
             rows = cursor.fetchall()
             return [
                 {
                     "id": row[0],
                     "name": row[1],
                     "params": json.loads(row[2]),
-                    "url": row[3]
+                    "url": row[3],
+                    "created_at": row[4]
                 }
                 for row in rows
             ]
