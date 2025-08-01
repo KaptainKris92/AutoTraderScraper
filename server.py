@@ -374,10 +374,14 @@ def run_scraper(profile_id):
 
         finally:
             update_status("Complete.")
-            time.sleep(2)
-            scrape_progress.pop(profile_id, None)
-            scrape_threads.pop(profile_id, None)
-            scrape_abort_flags.pop(profile_id, None)
+
+            def cleanup():
+                time.sleep(3)  # Let frontend detect 'Complete.'
+                scrape_progress.pop(profile_id, None)
+                scrape_threads.pop(profile_id, None)
+                scrape_abort_flags.pop(profile_id, None)
+
+            threading.Thread(target=cleanup).start()
 
     thread = threading.Thread(target=run)
     thread.start()

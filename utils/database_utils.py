@@ -298,7 +298,7 @@ def check_ad_id_exists(ad_id, table_name='ads'):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute(
-            f"SELECT 1 FROM {table_name} WHERE \"ad_id\" = ?", (ad_id,))
+            f"SELECT 1 FROM {table_name} WHERE ad_id = ?", (ad_id,))
         return cursor.fetchone() is not None
 
 # (Un-)favourite/(Un-)exclude ads

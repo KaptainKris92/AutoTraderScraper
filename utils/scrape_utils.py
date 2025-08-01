@@ -98,7 +98,10 @@ def reject_cookies(driver, timeout=15):
 
 
 def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS, status_callback=None, abort_event=None):
+
     if abort_event and abort_event.is_set():
+        if status_callback:
+            status_callback("Aborted.")
         return None
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -126,10 +129,8 @@ def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS, 
             EC.presence_of_element_located(
                 (By.CSS_SELECTOR, "div[data-testid='advertCard']"))
         )
-        print("Listings loaded.")
     except:
-        print("Still couldn't find any listings.")
-        print(driver.page_source[:2000])
+        print("Couldn't find any listings.")
         driver.quit()
         return
 
@@ -138,6 +139,7 @@ def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS, 
 
     # Scroll to bottom until no new content appears (stop at MAX_SCROLLS)
     scroll_pause_time = 2.5
+
     for i in range(max_scrolls):
         if abort_event and abort_event.is_set():
             break
@@ -154,122 +156,98 @@ def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS, 
         if new_count == prev_count:
             print(f"🔄 No new listings detected after scroll #{i+1}. Stopping.")
             break
-    else:
-        print("⚠️ Max scrolls reached, may still be incomplete.")
 
-    car_data = []
     listings = driver.find_elements(
         By.CSS_SELECTOR, "div[data-testid='advertCard']")
 
     total_listings = len(listings)
-
+    print(f"Found {total_listings} listings.")
     if status_callback:
         status_callback(
-            f"Found {total_listings} car listings after scrolling.")
-    print(f"🛻 Found {total_listings} car listings after scrolling.")
+            f"Found {total_listings} listings.")
+
+    car_data = []
 
     # Extract listings info
-    for i, listing in enumerate(listings, start=1):
+    for i, listing in enumerate(listings, 1):
         if abort_event and abort_event.is_set():
             break
 
+        def safe_find(selector, attr="text", default=""):
+            try:
+                el = listing.find_element(By.CSS_SELECTOR, selector)
+                return el.get_attribute(attr) if attr != "text" else el.text.strip()
+            except:
+                return default
+
+        href = safe_find("a[data-testid='search-listing-title']", "href")
+        ad_url = f"https://www.autotrader.co.uk{href.split('?')[0]}" if href.startswith(
+            "/") else href
+
         try:
-            title_elem = listing.find_element(
-                By.CSS_SELECTOR, "a[data-testid='search-listing-title']")
-            thumbnail_elem = listing.find_element(
-                By.CSS_SELECTOR, "img.main-image")
-            thumbnail_url = thumbnail_elem.get_attribute("src")
-            href = title_elem.get_attribute("href")
-            base_href = href.split("?")[0]  # Remove everything after '?'
-            ad_url = "https://www.autotrader.co.uk" + \
-                base_href if base_href.startswith("/") else base_href
-        except:
-            ad_url = ""
-            thumbnail_url = None
+            ad_id = ad_url.split("/")[-1].split("?")[0]
+            if not ad_id.isdigit():
+                raise ValueError("Invalid ad_id extracted.")
+        except Exception as e:
+            print(
+                f"⚠️ Could not extract numeric ad_id from URL: {ad_url} ({e})")
+            continue  # Skip this listing
 
-        # Generate stable ad_id
-        ad_id = hashlib.md5(ad_url.encode(
-            'utf-8')).hexdigest()[:10] if ad_url else ""
+        # Check if ad already exists in DB
+        ad_exists = check_ad_id_exists(ad_id, TABLE_NAME)
 
-        if check_ad_id_exists(ad_id, TABLE_NAME):
+        # Skip saving ad if it already exists
+        if ad_exists:
+            print(f"🟡 Ad {ad_id} already in DB — skipping full scrape.")
             continue
 
-        if thumbnail_url:
-            if status_callback:
-                status_callback(
-                    f"Downloading thumbnail for ad {i} of {total_listings}.")
+        # Evaluate thumbnail
+        thumb_url = safe_find("img.main-image", "src")
+        thumb_path = Path("thumbnails") / f"{ad_id}.jpg"
 
-            print(f'📸 Attempting thumbnail download for {ad_id}')
-            download_thumbnail(ad_id, thumbnail_url)
+        if thumb_url:
+            if not thumb_path.exists():
+                print(f"📸 Downloading missing thumbnail for {ad_id}")
+                if status_callback:
+                    status_callback(
+                        f"Downloading thumbnail for ad {i} of {total_listings}.")
+                download_thumbnail(ad_id, thumb_url)
+            else:
+                print(f"✅ Thumbnail exists for {ad_id}, skipping download.")
+        else:
+            print(f"⚠️ No thumbnail URL for {ad_id}")
 
         try:
             post_date = extract_post_date(ad_url)
         except:
             post_date = ""
 
-        try:
-            title = listing.find_element(
-                By.CSS_SELECTOR, "[data-testid='search-listing-title']").text
-        except:
-            title = ""
-
-        try:
-            price_elem = listing.find_element(
-                By.CSS_SELECTOR, "div[class*='at__sc-u4ap7c-12'] span")
-            price = price_elem.text.strip()
-        except:
-            price = ""
-
-        try:
-            subtitle = listing.find_element(
-                By.CSS_SELECTOR, "[data-testid='search-listing-subtitle']").text
-        except:
-            subtitle = ""
-
-        try:
-            mileage = listing.find_element(
-                By.CSS_SELECTOR, "[data-testid='mileage']").text
-        except:
-            mileage = ""
+        title = safe_find("[data-testid='search-listing-title']")
+        subtitle = safe_find("[data-testid='search-listing-subtitle']")
+        price = safe_find("div[class*='at__sc-u4ap7c-12'] span")
+        mileage_raw = safe_find("[data-testid='mileage']")
+        reg_year = safe_find("[data-testid='registered_year']")
+        location = safe_find("[data-testid='search-listing-location']")
 
         # Convert mileage to numeric
-        mileage_numeric = ""
-        if mileage:
-            try:
-                mileage_numeric = int(mileage.lower().replace(
-                    "miles", "").replace(",", "").strip())
-            except:
-                pass
-
         try:
-            reg_year = listing.find_element(
-                By.CSS_SELECTOR, "[data-testid='registered_year']").text
+            mileage_numeric = int(mileage_raw.lower().replace(
+                "miles", "").replace(",", "").strip())
         except:
-            reg_year = ""
+            mileage_numeric = ""
 
-        try:
-            location = listing.find_element(
-                By.CSS_SELECTOR, "[data-testid='search-listing-location']").text
-        except:
-            location = ""
+        city, dist = None, None
 
-        loc_match = re.match(r"(.+?)\s*\((\d+)\s*miles\)", location)
-        if loc_match:
-            city, dist = loc_match.groups()
-            try:
-                dist = int(dist)
-            except ValueError:
-                dist = None
-        else:
-            city, dist = None, None
+        if (match := re.match(r"(.+?)\s*\((\d+)\s*miles\)", location)):
+            city, dist = match.groups()
+            dist = int(dist)
 
         # Remove subtitle and price from title if present
         cleaned_title = title
-        if subtitle and subtitle in cleaned_title:
-            cleaned_title = cleaned_title.replace(subtitle, "")
-        if price and price in cleaned_title:
-            cleaned_title = cleaned_title.replace(price, "")
-        cleaned_title = cleaned_title.strip()
+
+        for val in [subtitle, price]:
+            if val in cleaned_title:
+                cleaned_title = cleaned_title.replace(val, "")
         # Remove trailing newline and comma if present
         cleaned_title = re.sub(r'[\n\r]+,?$', '', cleaned_title).strip()
 
@@ -289,22 +267,13 @@ def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS, 
             'scrape_date': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
 
-        if not title:
-            print("⚠️ Skipped listing with missing title or fields.")
-
     driver.quit()
 
-    df = pd.DataFrame(car_data)
-
-    if status_callback:
-        status_callback("Dropping duplicate ads.")
-
-    df = df.drop_duplicates(subset='ad_id')
+    df = pd.DataFrame(car_data).drop_duplicates(subset="ad_id")
 
     # Remove any ads no longer listed
     live_ad_ids = set(df['ad_id'])
-    saved_ads = load_ads(TABLE_NAME)
-    saved_ad_ids = set(ad['ad_id'] for ad in saved_ads)
+    saved_ad_ids = set(ad['ad_id'] for ad in load_ads(TABLE_NAME))
     to_remove = saved_ad_ids - live_ad_ids
 
     if to_remove:
@@ -320,28 +289,22 @@ def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS, 
             if abort_event and abort_event.is_set():
                 break
 
-            thumb_path = Path("thumbnails") / f"{ad_id}.jpg"
+            thumb = Path("thumbnails") / f"{ad_id}.jpg"
             image_folder = Path("images") / ad_id
 
-            if thumb_path.exists():
-                try:
-                    thumb_path.unlink()
-                    if status_callback:
-                        status_callback(f"Deleted thumbnail for {ad_id}")
-                    print(f"🗑️ Deleted thumbnail for {ad_id}")
-                except Exception as e:
-                    print(f"⚠️ Could not delete thumbnail for {ad_id}: {e}")
+            if thumb.exists():
+                thumb.unlink(missing_ok=True)
+                if status_callback:
+                    status_callback(f"Deleted thumbnail for {ad_id}")
+                print(f"🗑️ Deleted thumbnail for {ad_id}")
 
             if image_folder.exists():
-                try:
-                    for file in image_folder.glob("*"):
-                        file.unlink()
-                    image_folder.rmdir()
-                    if status_callback:
-                        status_callback(f"Deleted image folder for {ad_id}")
-                    print(f"🗑️ Deleted image folder for {ad_id}")
-                except Exception as e:
-                    print(f"⚠️ Could not delete image folder for {ad_id}: {e}")
+                for file in image_folder.glob("*"):
+                    file.unlink()
+                image_folder.rmdir()
+                if status_callback:
+                    status_callback(f"Deleted image folder for {ad_id}")
+                print(f"🗑️ Deleted image folder for {ad_id}")
 
     if save_to_excel:
         file_path = DATA_DIR / f"cars_{datetime.now().date()}.xlsx"
