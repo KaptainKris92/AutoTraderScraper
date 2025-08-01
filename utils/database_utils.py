@@ -282,6 +282,14 @@ def delete_mot_history(reg, table_name='mot_history'):
             f"DELETE FROM {table_name} WHERE registration = ?", (reg.upper(),))
         conn.commit()
 
+
+def delete_profile(profile_id):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "DELETE FROM search_profiles WHERE id = ?", (profile_id,))
+        conn.commit()
+
 # %% Other utils
 # --------------
 

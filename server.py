@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from utils.database_utils import create_ads_table, update_flag, load_ads, save_mot_history, get_mot_histories, delete_mot_history, bind_mot_to_ad, ensure_tables_exist, save_caz_data, get_caz_data, save_search_params, get_search_profiles, search_profile_exists, save_ads_data
+from utils.database_utils import create_ads_table, update_flag, load_ads, save_mot_history, get_mot_histories, delete_mot_history, bind_mot_to_ad, ensure_tables_exist, save_caz_data, get_caz_data, save_search_params, get_search_profiles, search_profile_exists, save_ads_data, delete_profile
 from utils.mot_history import get_mot_history
 from utils.scrape_utils import download_pictures, check_caz, scrape_autotrader
 from utils.search_utils import generate_autotrader_url
@@ -405,6 +405,12 @@ def cancel_scraper(profile_id):
 def delete_mot_entry(reg):
     delete_mot_history(reg)
     return jsonify({'status': 'deleted'})
+
+
+@app.route("/api/delete-search-profile/<int:profile_id>", methods=["DELETE"])
+def delete_search_profile(profile_id):
+    delete_profile(profile_id)
+    return jsonify({"message": "Deleted successfully"}), 200
 
 
 if __name__ == '__main__':

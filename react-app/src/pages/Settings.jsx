@@ -74,6 +74,7 @@ export default function Settings() {
       alert(`Profile already exists with name: ${data.name}`);
     } else if (res.ok) {
       alert("Saved profile: " + profileName);
+      await fetchProfiles();
     } else {
       alert("Something went wrong: " + data.error);
     }
@@ -469,24 +470,15 @@ export default function Settings() {
     }));
   };
 
+  const fetchProfiles = async () => {      
+    const res = await fetch("/api/search-profiles");
+    const data = await res.json();
+    setProfiles(data.profiles);      
+  };
+
   useEffect(() => {    
-    const fetchProfiles = async () => {      
-      const res = await fetch("/api/search-profiles");
-      const data = await res.json();
-      setProfiles(data.profiles);      
-    };
     fetchProfiles();
   }, []); // The `[]` means it only runs once on intiial mount
-
-  const handleSave = async () => {
-    const payload = { ...formData, name: profileName, url: generatedUrl };
-    await fetch("/api/save-search-profile", {
-      method: "POST",
-      body: JSON.stringify(payload),
-      headers: { "Content-Type": "application/json" },
-    });
-    // fetchProfiles();
-  };
 
   // Changes inputs to loaded profile when clicked
   const loadProfileIntoForm = async (id) => {

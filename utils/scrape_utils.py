@@ -160,12 +160,16 @@ def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS, 
     car_data = []
     listings = driver.find_elements(
         By.CSS_SELECTOR, "div[data-testid='advertCard']")
+
+    total_listings = len(listings)
+
     if status_callback:
-        status_callback(f"Found {len(listings)} car listings after scrolling.")
-    print(f"🛻 Found {len(listings)} car listings after scrolling.")
+        status_callback(
+            f"Found {total_listings} car listings after scrolling.")
+    print(f"🛻 Found {total_listings} car listings after scrolling.")
 
     # Extract listings info
-    for listing in listings:
+    for i, listing in enumerate(listings, start=1):
         if abort_event and abort_event.is_set():
             break
 
@@ -192,7 +196,8 @@ def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS, 
 
         if thumbnail_url:
             if status_callback:
-                status_callback(f"Download thumbnail for {ad_id}.")
+                status_callback(
+                    f"Downloading thumbnail for ad {i} of {total_listings}.")
 
             print(f'📸 Attempting thumbnail download for {ad_id}')
             download_thumbnail(ad_id, thumbnail_url)
