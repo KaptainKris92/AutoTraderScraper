@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 export default function ScrapeProgressModal({ profileId, onClose }) {
   const [status, setStatus] = useState("Starting...");
+  const hasCompleted = useRef(false);
 
   useEffect(() => {
     const interval = setInterval(async () => {

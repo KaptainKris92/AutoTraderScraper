@@ -347,6 +347,10 @@ def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS, 
         file_path = DATA_DIR / f"cars_{datetime.now().date()}.xlsx"
         df.to_excel(file_path, index=False)
         print(f"Saved {len(df)} listings to {file_path}")
+
+    if status_callback:
+        status_callback("Complete.")
+
     return df
 
 # %% AutoTrader images
