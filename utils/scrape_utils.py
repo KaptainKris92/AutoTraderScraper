@@ -97,13 +97,26 @@ def reject_cookies(driver, timeout=15):
 # --------------
 
 
-def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS):
+def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS, status_callback=None, abort_event=None):
+    if abort_event and abort_event.is_set():
+        return None
+
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     if not url:
         return None
 
+    if status_callback:
+        status_callback("Opening AutoTrader...")
+
     driver = create_stealth_driver(headless=True, url=url)
+
+    if abort_event and abort_event.is_set():
+        driver.quit()
+        return None
+
+    if status_callback:
+        status_callback("Rejecting cookies...")
     reject_cookies(driver)
     time.sleep(3)  # Give the page time to render listings
 
@@ -120,9 +133,15 @@ def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS):
         driver.quit()
         return
 
+    if status_callback:
+        status_callback(f"Loading ads for up to {max_scrolls} scrolls")
+
     # Scroll to bottom until no new content appears (stop at MAX_SCROLLS)
     scroll_pause_time = 2.5
     for i in range(max_scrolls):
+        if abort_event and abort_event.is_set():
+            break
+
         driver.execute_script(
             "window.scrollTo(0, document.body.scrollHeight);")
 
@@ -141,10 +160,15 @@ def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS):
     car_data = []
     listings = driver.find_elements(
         By.CSS_SELECTOR, "div[data-testid='advertCard']")
+    if status_callback:
+        status_callback(f"Found {len(listings)} car listings after scrolling.")
     print(f"🛻 Found {len(listings)} car listings after scrolling.")
 
     # Extract listings info
     for listing in listings:
+        if abort_event and abort_event.is_set():
+            break
+
         try:
             title_elem = listing.find_element(
                 By.CSS_SELECTOR, "a[data-testid='search-listing-title']")
@@ -167,6 +191,9 @@ def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS):
             continue
 
         if thumbnail_url:
+            if status_callback:
+                status_callback(f"Download thumbnail for {ad_id}.")
+
             print(f'📸 Attempting thumbnail download for {ad_id}')
             download_thumbnail(ad_id, thumbnail_url)
 
@@ -263,6 +290,10 @@ def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS):
     driver.quit()
 
     df = pd.DataFrame(car_data)
+
+    if status_callback:
+        status_callback("Dropping duplicate ads.")
+
     df = df.drop_duplicates(subset='ad_id')
 
     # Remove any ads no longer listed
@@ -273,16 +304,25 @@ def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS):
 
     if to_remove:
         print(f'🗑️ Removing {len(to_remove)} ads no longer listed.')
+
+        if status_callback:
+            status_callback(
+                f"Removing {len(to_remove)}ads that have been unlisted.")
         delete_ads(to_remove, TABLE_NAME)
 
         # Remove associated thumbnail and image folders
         for ad_id in to_remove:
+            if abort_event and abort_event.is_set():
+                break
+
             thumb_path = Path("thumbnails") / f"{ad_id}.jpg"
             image_folder = Path("images") / ad_id
 
             if thumb_path.exists():
                 try:
                     thumb_path.unlink()
+                    if status_callback:
+                        status_callback(f"Deleted thumbnail for {ad_id}")
                     print(f"🗑️ Deleted thumbnail for {ad_id}")
                 except Exception as e:
                     print(f"⚠️ Could not delete thumbnail for {ad_id}: {e}")
@@ -292,6 +332,8 @@ def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS):
                     for file in image_folder.glob("*"):
                         file.unlink()
                     image_folder.rmdir()
+                    if status_callback:
+                        status_callback(f"Deleted image folder for {ad_id}")
                     print(f"🗑️ Deleted image folder for {ad_id}")
                 except Exception as e:
                     print(f"⚠️ Could not delete image folder for {ad_id}: {e}")

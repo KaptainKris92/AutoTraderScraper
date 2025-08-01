@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Slider from "rc-slider";
 import "rc-slider/assets/index.css";
 import Select from "react-select";
+import ScrapeProgressModal from "../components/ScrapeProgressModal";
 
 export default function Settings() {
   const [generatedUrl, setGeneratedUrl] = useState(""); // For debugging
@@ -9,6 +10,9 @@ export default function Settings() {
   const [profileName, setProfileName] = useState("");
   const [selectedProfileId, setSelectedProfileId] = useState(null);
   const [profiles, setProfiles] = useState([]);
+
+  // Modal state
+  const [showScrapeModal, setShowScrapeModal] = useState(false);
 
   const generateUrl = async () => {
     const payload = {
@@ -465,14 +469,14 @@ export default function Settings() {
     }));
   };
 
-  useEffect(() => {
-    const fetchProfiles = async () => {
+  useEffect(() => {    
+    const fetchProfiles = async () => {      
       const res = await fetch("/api/search-profiles");
       const data = await res.json();
-      setProfiles(data.profiles);
+      setProfiles(data.profiles);      
     };
     fetchProfiles();
-  }, []); // THe `[]` means it only runs once on intiial mount
+  }, []); // The `[]` means it only runs once on intiial mount
 
   const handleSave = async () => {
     const payload = { ...formData, name: profileName, url: generatedUrl };
@@ -536,6 +540,11 @@ export default function Settings() {
       {/* Sidebar */}
       <div className="w-1/4 pr-4 border-r">
         <h2 className="font-bold mb-2">Saved Profiles</h2>
+
+        {profiles.length === 0 && (        
+          <p className="text-sm text-gray-400 italic">No profiles found</p>
+        )}
+
         <ul className="space-y-2">
           {profiles.map((p) => (
             <li
@@ -571,8 +580,15 @@ export default function Settings() {
                 <button
                   className="text-sm bg-green-600 text-white px-2 py-1 rounded"
                   onClick={async () => {
-                    await fetch(`/api/run-scraper/${p.id}`, { method: "POST" });
-                    alert("Scraping started for " + p.name);
+                    const res = await fetch(`/api/run-scraper/${p.id}`, { method: "POST" });
+                    const data = await res.json();
+
+                    if (res.ok){
+                      setSelectedProfileId(p.id); 
+                      setShowScrapeModal(true);
+                    } else {
+                      alert("Failed to start scraping for " + p.name + " " + data.error);
+                    }                    
                   }}
                 >
                   Update Table
@@ -584,7 +600,7 @@ export default function Settings() {
       </div>
 
       {/* Settings parameters */}
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="flex-1 p-6">
         <form className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Profile Name */}
@@ -719,13 +735,6 @@ export default function Settings() {
               Save Search Profile
             </button>
 
-            <button
-              type="button"
-              className="bg-blue-600 text-white px-4 py-2 rounded"
-              onClick={() => runScraper(profileName.id)}
-            >
-              Scrape
-            </button>
           </div>
 
           {/* Debug + URL */}
@@ -746,8 +755,17 @@ export default function Settings() {
               </div>
             )}
           </div>
+
         </form>
       </div>
+
+      {/* Progress modal */}
+      {showScrapeModal && (
+        <ScrapeProgressModal
+          profileId={selectedProfileId}
+          onClose={() => setShowScrapeModal(false)}
+          />
+      )}
     </div>
   );
 }
