@@ -1,5 +1,5 @@
 from utils.general_utils import extract_post_date
-from utils.database_utils import check_ad_id_exists, get_saved_ad_ids, delete_ads, load_ads
+from utils.database_utils import check_ad_id_exists, get_saved_ad_ids, delete_ads, load_ads, update_search_profile_timestamp
 from selenium_stealth import stealth
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support import expected_conditions as EC
@@ -325,6 +325,9 @@ def scrape_autotrader(url, search_id=None, save_to_excel=True, max_scrolls=DEFAU
 
     if status_callback:
         status_callback("Complete.")
+
+    if search_id:
+        update_search_profile_timestamp(search_id)
 
     return df
 

@@ -44,13 +44,19 @@ export default function Settings() {
   };
 
   const saveProfile = async () => {
+    const trimmedPostcode = formData.postcode.replace(/\s/g, "").toUpperCase();
+    if (!trimmedPostcode) {
+      alert("Please enter a valid postcode before saving the profile!");
+      return;
+    }
+    
     const url = await generateUrl();
     if (!url) return;
 
     const payload = {
       name: profileName,
       params: {
-        postcode: formData.postcode.replace(/\s/g, "").toUpperCase(),
+        postcode: trimmedPostcode,
         radius: formData.radius,
         make: formData.make.join(","),
         min_price: priceSteps[formData.priceIndex[0]],
@@ -514,7 +520,7 @@ export default function Settings() {
   };  
 
 
-  // Format `created_at` date
+  // Format `last_updated` date
   function formatDate(dateStr) {
     if (!dateStr) return "Unknown date";
     const trimmed = dateStr.split(".")[0]; // Remove microseconds so JS can process it
@@ -522,7 +528,9 @@ export default function Settings() {
     return isNaN(date.getTime()) ? "Unknown date" : date.toLocaleDateString("en-GB", {
       year: "numeric",
       month: "short",
-      day: "numeric"
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
     });
   }
 
@@ -553,7 +561,7 @@ export default function Settings() {
               >
                 <span className="font-medium">{p.name}</span>
                 <span className="text-sm text-gray-500">
-                  {formatDate(p.created_at)}
+                  {formatDate(p.last_updated)}
                 </span>
               </div>
               <div className="flex gap-2 mt-2">
@@ -616,7 +624,9 @@ export default function Settings() {
                 type="text"
                 name="postcode"
                 maxLength={8}
-                className="border rounded p-2 w-full"
+                className={`border rounded p-2 w-full ${
+                  !formData.postcode.trim() ? "border-red-500" : ""
+                }`}
                 value={formData.postcode}
                 onChange={(e) => {
                   const raw = e.target.value;

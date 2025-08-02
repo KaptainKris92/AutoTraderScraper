@@ -89,7 +89,7 @@ def create_search_profiles_table():
                         name TEXT NOT NULL,
                         params TEXT NOT NULL,
                         generated_url TEXT,
-                        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                        last_updated TEXT DEFAULT CURRENT_TIMESTAMP
                     )
                     ''')
 
@@ -166,11 +166,22 @@ def save_search_params(name, params, generated_url=None):
         cursor = conn.cursor()
         timestamp = datetime.now().isoformat()
         cursor.execute(
-            "INSERT INTO search_profiles (name, params, generated_url, created_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO search_profiles (name, params, generated_url, last_updated) VALUES (?, ?, ?, ?)",
             (name, json.dumps(params, sort_keys=True), generated_url, timestamp)
         )
         conn.commit()
         return cursor.lastrowid
+
+# Update the last_updated field whenever a table is refreshed
+
+
+def update_search_profile_timestamp(search_id):
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("""
+            UPDATE search_profiles
+            SET last_updated = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (search_id,))
 
 
 # %% Retrieve data from tables
@@ -238,7 +249,7 @@ def get_search_profiles(profile_id=None):
 
         if profile_id is not None:
             cursor.execute(
-                "SELECT id, name, params, generated_url, created_at FROM search_profiles WHERE id = ?", (profile_id,))
+                "SELECT id, name, params, generated_url, last_updated FROM search_profiles WHERE id = ?", (profile_id,))
             row = cursor.fetchone()
             if not row:
                 return None
@@ -247,11 +258,11 @@ def get_search_profiles(profile_id=None):
                 "name": row[1],
                 "params": json.loads(row[2]),
                 "url": row[3],
-                "created_at": row[4]
+                "last_updated": row[4]
             }
         else:
             cursor.execute(
-                "SELECT id, name, params, generated_url, created_at FROM search_profiles")
+                "SELECT id, name, params, generated_url, last_updated FROM search_profiles")
             rows = cursor.fetchall()
             return [
                 {
@@ -259,7 +270,7 @@ def get_search_profiles(profile_id=None):
                     "name": row[1],
                     "params": json.loads(row[2]),
                     "url": row[3],
-                    "created_at": row[4]
+                    "last_updated": row[4]
                 }
                 for row in rows
             ]
