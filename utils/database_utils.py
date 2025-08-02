@@ -131,8 +131,9 @@ def save_caz_data(registration, caz_data, table_name='caz'):
 
         for entry in caz_data:
             cursor.execute(f'''
-                INSERT INTO {table_name} 
-                (registration, zone, daily_charge, zone_live, map_url, exemptions_url, created_at)
+                INSERT INTO {table_name}
+                (registration, zone, daily_charge, zone_live,
+                 map_url, exemptions_url, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', (
                 registration.upper(),
@@ -164,10 +165,10 @@ def save_mot_history(reg, data, ad_id=None, table_name='mot_history'):
 def save_search_params(name, params, generated_url=None):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        timestamp = datetime.now().isoformat()
         cursor.execute(
             "INSERT INTO search_profiles (name, params, generated_url, last_updated) VALUES (?, ?, ?, ?)",
-            (name, json.dumps(params, sort_keys=True), generated_url, timestamp)
+            (name, json.dumps(params, sort_keys=True),
+             generated_url, datetime.now().isoformat())
         )
         conn.commit()
         return cursor.lastrowid
@@ -177,11 +178,11 @@ def save_search_params(name, params, generated_url=None):
 
 def update_search_profile_timestamp(search_id):
     with sqlite3.connect(DB_PATH) as conn:
-        conn.execute("""
+        conn.execute(f"""
             UPDATE search_profiles
-            SET last_updated = CURRENT_TIMESTAMP
+            SET last_updated = ?
             WHERE id = ?
-        """, (search_id,))
+        """, (datetime.now().isoformat(), search_id,))
 
 
 # %% Retrieve data from tables
