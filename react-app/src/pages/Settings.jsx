@@ -765,7 +765,10 @@ export default function Settings() {
       {showScrapeModal && (
         <ScrapeProgressModal
           profileId={selectedProfileId}
-          onClose={() => setShowScrapeModal(false)}
+          onClose={() => {
+            setShowScrapeModal(false);
+            fetchProfiles();
+          }}
           />
       )}
     </div>
