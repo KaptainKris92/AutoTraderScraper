@@ -97,7 +97,7 @@ def reject_cookies(driver, timeout=15):
 # --------------
 
 
-def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS, status_callback=None, abort_event=None):
+def scrape_autotrader(url, search_id=None, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS, status_callback=None, abort_event=None):
 
     if abort_event and abort_event.is_set():
         if status_callback:
@@ -167,6 +167,7 @@ def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS, 
             f"Found {total_listings} listings.")
 
     car_data = []
+    live_ad_ids = set()
 
     # Extract listings info
     for i, listing in enumerate(listings, 1):
@@ -181,17 +182,25 @@ def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS, 
                 return default
 
         href = safe_find("a[data-testid='search-listing-title']", "href")
+
+        # Skip promoted ads
+        if "journey=PROMOTED_LISTING_JOURNEY" in href:
+            print(f"⛔ Skipping promoted ad: {href}")
+            continue
+
         ad_url = f"https://www.autotrader.co.uk{href.split('?')[0]}" if href.startswith(
             "/") else href
 
-        try:
-            ad_id = ad_url.split("/")[-1].split("?")[0]
-            if not ad_id.isdigit():
-                raise ValueError("Invalid ad_id extracted.")
-        except Exception as e:
-            print(
-                f"⚠️ Could not extract numeric ad_id from URL: {ad_url} ({e})")
-            continue  # Skip this listing
+        match = re.search(r"/(\d{15,})", ad_url)  # Matches a long numeric ID
+
+        if match:
+            ad_id = match.group(1)
+        else:
+            print(f"⚠️ Could not extract ad_id from URL: {ad_url}")
+            continue
+
+        # Add to live_ads to avoid deleting existing ads that have been skipped
+        live_ad_ids.add(ad_id)
 
         # Check if ad already exists in DB
         ad_exists = check_ad_id_exists(ad_id, TABLE_NAME)
@@ -251,29 +260,32 @@ def scrape_autotrader(url, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS, 
         # Remove trailing newline and comma if present
         cleaned_title = re.sub(r'[\n\r]+,?$', '', cleaned_title).strip()
 
-        car_data.append({
-            'ad_url': ad_url,
-            'ad_id': ad_id,
-            'title': cleaned_title,
-            'subtitle': subtitle,
-            'price': price,
-            'mileage': mileage_numeric,
-            'reg_year': reg_year,
-            'distance': dist,
-            'location': city,
-            'post_date': post_date,
-            'favourited': 0,
-            'excluded': 0,
-            'scrape_date': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        })
+        # Only add cars that were not excluded (e.g. promoted listings)
+        if ad_id:
+            car_data.append({
+                'ad_url': ad_url,
+                'ad_id': ad_id,
+                'title': cleaned_title,
+                'subtitle': subtitle,
+                'price': price,
+                'mileage': mileage_numeric,
+                'reg_year': reg_year,
+                'distance': dist,
+                'location': city,
+                'post_date': post_date,
+                'favourited': 0,
+                'excluded': 0,
+                'scrape_date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                'search_id': search_id
+            })
 
     driver.quit()
 
     df = pd.DataFrame(car_data).drop_duplicates(subset="ad_id")
 
     # Remove any ads no longer listed
-    live_ad_ids = set(df['ad_id'])
-    saved_ad_ids = set(ad['ad_id'] for ad in load_ads(TABLE_NAME))
+    saved_ad_ids = set(ad['ad_id'] for ad in load_ads(
+        TABLE_NAME, search_id=search_id))
     to_remove = saved_ad_ids - live_ad_ids
 
     if to_remove:

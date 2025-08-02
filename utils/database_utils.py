@@ -28,7 +28,7 @@ def create_ads_table(table_name='ads'):
                            "title" TEXT,
                            "subtitle" TEXT,
                            "price" TEXT,
-                           "mileage" INTEGER,                           
+                           "mileage" INTEGER,
                            "reg_year" TEXT,
                            "distance" INTEGER,
                            "location" TEXT,
@@ -38,7 +38,7 @@ def create_ads_table(table_name='ads'):
                            "excluded" INTEGER DEFAULT 0,
                            "excluded_date" TEXT,
                            "scrape_date" TEXT,
-                           "search_id" INTEGER                           
+                           "search_id" INTEGER
                        )
                        ''')
         conn.commit()
@@ -54,7 +54,7 @@ def create_mot_history_table(table_name='mot_history'):
                            "registration" TEXT PRIMARY KEY,
                            "mot_data" TEXT NOT NULL,
                            "ad_id" TEXT,
-                           "created_at" TEXT NOT NULL                           
+                           "created_at" TEXT NOT NULL
                        )
                        ''')
         conn.commit()
@@ -100,7 +100,17 @@ def create_search_profiles_table():
 
 
 def save_ads_data(data, table_name='ads'):
+
     df = pd.DataFrame(data)
+
+    if df.empty:
+        print("⚠️ DataFrame is empty — skipping save.")
+        return
+
+    if 'ad_id' not in df.columns:
+        print("⚠️ DataFrame has no 'ad_id' column — skipping save.")
+        return
+
     with sqlite3.connect(DB_PATH) as conn:
         existing_ids = pd.read_sql(f'SELECT ad_id FROM {table_name}', conn)[
             'ad_id'].tolist()
@@ -166,9 +176,15 @@ def save_search_params(name, params, generated_url=None):
 # %% Retrieve data from tables
 # ------------------------------
 
-def load_ads(table='ads'):
+def load_ads(table='ads', search_id=None):
     with sqlite3.connect(DB_PATH) as conn:
-        df = pd.read_sql_query(f'SELECT * FROM {table}', conn)
+        if search_id is None:
+            query = f'SELECT * FROM {table}'
+        else:
+            query = f'SELECT * FROM {table} WHERE search_id = {search_id}'
+
+        df = pd.read_sql_query(
+            query, conn)
         df = df.fillna("").replace({float("nan"): ""})
         return df.to_dict(orient='records')
 

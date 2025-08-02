@@ -32,7 +32,9 @@ download_status = {}
 
 @app.route('/api/ads', methods=['GET'])
 def get_ads():
-    ads = load_ads('ads')
+    search_id = request.args.get("search_id", defalut=None, type=int)
+
+    ads = load_ads('ads', search_id=search_id)
 
     if not ads:
         return jsonify({"message": "No ads found", "data": []}), 200
@@ -361,7 +363,7 @@ def run_scraper(profile_id):
     def run():
         try:
             update_status("Launching browser...")
-            df = scrape_autotrader(url, max_scrolls=9_999_999, status_callback=update_status,
+            df = scrape_autotrader(url, search_id=search_id, max_scrolls=9_999_999, status_callback=update_status,
                                    abort_event=abort_event)
 
             if df is None:
