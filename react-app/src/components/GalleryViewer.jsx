@@ -38,7 +38,11 @@ export default function GalleryViewer({
         const data = await res.json();
         setProgressStatus(data.status);
 
-        if (data.current === data.total && data.total !== 0) {
+        const isComplete = data.status === "Complete.";
+        const isIdleWithImages = data.status === "Idle" && images.length > 0;
+        const isDownloaded = data.current === data.total && data.total !== 0;
+
+        if (isComplete || isIdleWithImages || isDownloaded) {
           pollingDoneRef.current = true;
           clearInterval(intervalId);
         }
@@ -54,12 +58,8 @@ export default function GalleryViewer({
     return () => {
       clearInterval(intervalId);
     };
-  }, [adId, ready]);
+  }, [adId, ready, images.length]);
 
-  // Reset polling when adId changes
-  useEffect(() => {
-    pollingDoneRef.current = false;
-  }, [adId]);
 
   // Fetch gallery images from disk
   useEffect(() => {
