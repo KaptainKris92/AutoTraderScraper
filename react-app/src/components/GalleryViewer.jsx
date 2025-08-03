@@ -223,7 +223,7 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready, onR
           <button
             onClick={() => {
               onImageChange(images[currentIndex]);
-              onClose();              
+              onClose();
             }}
             className="absolute top-4 right-4 text-white text-2xl"
           >
@@ -242,11 +242,13 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready, onR
               alt={`Image ${currentIndex + 1}`}
               className="max-w-full max-h-[80vh] object-contain"
             />
-
-            {/* OCR Button */}
+          </div>
+          
+          {/* OCR Button */}
+          <div className="mt-4 flex justify-center">
             <button
               onClick={handleOCRCheck}
-              className="absolute bottom-2 right-2 bg-yellow-500 text-white px-3 py-1 rounded text-sm shadow"
+              className="bg-yellow-500 text-white px-4 py-2 rounded text-sm shadow"
             >
               Find reg in image
             </button>

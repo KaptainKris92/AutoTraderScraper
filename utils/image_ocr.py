@@ -7,7 +7,7 @@ import numpy as np
 
 def crop_likely_plate_region(img):
     h, w = img.shape[:2]
-    return img[h//2:h, :]  # Bottom half only
+    return img[h//3:, :]  # Bottom 2/3 only
 
 
 def preprocess_image(path, debug_path=None):
