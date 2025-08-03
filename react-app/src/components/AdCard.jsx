@@ -70,26 +70,35 @@ export default function AdCard({ ad, refreshKey, onOpenGallery }) {
 
   // Quick search
   const handleQuickSearch = async () => {
+    const cleanReg = regInput.replace(/\s+/g, "").toUpperCase();
+
     try {
+      // 1. Query MOT history from GOV API
       const res = await fetch(
-        `/api/mot_history/query?reg=${encodeURIComponent(regInput)}`
+        `/api/mot_history/query?reg=${encodeURIComponent(cleanReg)}`
       );
       const data = await res.json();
       if (!data || data.error)
         throw new Error(data.error || "Invalid response");
 
+      // 2. Save it to the database (unbound first)
       await fetch("/api/mot_history", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          registration: regInput.replace(/\s+/g, "").toUpperCase(),
-          data,
-          ad_id: null,
-        }),
+        body: JSON.stringify({ registration: cleanReg, data, ad_id: null }),
       });
 
-      setRegInput("");
-      alert("✅ MOT history saved.");
+      // 3. Immediately bind to current ad
+      await fetch("/api/mot_history/bind", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registration: cleanReg, ad_id: ad.ad_id }),
+      });
+
+      // 4. Update UI immediately
+      setBoundReg(cleanReg); // show bound reg on card
+      setRegInput(""); // reset input field
+      setShowMOTModal(true); // open modal
     } catch (err) {
       console.error("❌ MOT search failed:", err);
       alert(
@@ -108,7 +117,7 @@ export default function AdCard({ ad, refreshKey, onOpenGallery }) {
   useEffect(() => {
     setCurrentThumb(`/api/thumbnail/${ad.ad_id}`);
     setThumbnailMissing(false); // Reset any missing-state
-  }, [ad]); 
+  }, [ad]);
 
   // Clicking thumbnail loads all gallery images and opens GalleryViewer
   const handleThumbnailClick = async () => {
@@ -319,7 +328,6 @@ export default function AdCard({ ad, refreshKey, onOpenGallery }) {
             initialReg={boundReg}
           />
         )}
-        
       </div>
     </>
   );
