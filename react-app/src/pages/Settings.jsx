@@ -545,6 +545,7 @@ export default function Settings() {
           <p className="text-sm text-gray-400 italic">No profiles found</p>
         )}
 
+        {/* Individual profiles */}
         <ul className="space-y-2">
           {profiles.map((p) => (
             <li
@@ -555,6 +556,7 @@ export default function Settings() {
                   : "bg-white"
               }`}
             >
+              {/* Name & Date */}
               <div
                 onClick={() => loadProfileIntoForm(p.id)}
                 className="flex justify-between items-center"
@@ -564,7 +566,11 @@ export default function Settings() {
                   {formatDate(p.last_updated)}
                 </span>
               </div>
-              <div className="flex gap-2 mt-2">
+              
+              {/* Button row */}
+              <div className="flex justify-between items-center mt-2">
+                {/* Button group */}
+                <div className="flex gap-2">
                 <button
                   className="text-sm bg-red-500 text-white px-2 py-1 rounded"
                   onClick={async () => {
@@ -593,7 +599,12 @@ export default function Settings() {
                 >
                   Update Table
                 </button>
-              </div>
+                </div>
+                {/* Ad count */}
+                <div className = "text-sm text-gray-500 whitespace-nowrap">
+                  {p.ad_count ?? 0} ads
+                </div>         
+              </div>     
             </li>
           ))}
         </ul>

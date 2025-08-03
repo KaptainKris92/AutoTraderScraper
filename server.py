@@ -32,7 +32,7 @@ download_status = {}
 
 @app.route('/api/ads', methods=['GET'])
 def get_ads():
-    search_id = request.args.get("search_id", defalut=None, type=int)
+    search_id = request.args.get("search_id", default=None, type=int)
 
     ads = load_ads('ads', search_id=search_id)
 

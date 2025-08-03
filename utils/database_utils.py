@@ -250,7 +250,20 @@ def get_search_profiles(profile_id=None):
 
         if profile_id is not None:
             cursor.execute(
-                "SELECT id, name, params, generated_url, last_updated FROM search_profiles WHERE id = ?", (profile_id,))
+                """
+                SELECT 	sp.id, 
+                        sp.name, 
+                        sp.params, 
+                        sp.generated_url, 
+                        sp.last_updated, 
+                        COUNT(a.search_id) AS ad_count 
+                FROM search_profiles AS sp
+                LEFT JOIN ads a ON a.search_id = sp.id 
+                WHERE id = ?
+                GROUP BY sp.id 
+                ORDER BY sp.last_updated DESC;
+                """,
+                (profile_id,))
             row = cursor.fetchone()
             if not row:
                 return None
@@ -259,11 +272,24 @@ def get_search_profiles(profile_id=None):
                 "name": row[1],
                 "params": json.loads(row[2]),
                 "url": row[3],
-                "last_updated": row[4]
+                "last_updated": row[4],
+                "ad_count": row[5]
             }
         else:
             cursor.execute(
-                "SELECT id, name, params, generated_url, last_updated FROM search_profiles")
+                """
+                SELECT 	sp.id, 
+                        sp.name, 
+                        sp.params, 
+                        sp.generated_url, 
+                        sp.last_updated, 
+                        COUNT(a.search_id) AS ad_count 
+                FROM search_profiles AS sp
+                LEFT JOIN ads a ON a.search_id = sp.id 
+                GROUP BY sp.id 
+                ORDER BY sp.last_updated DESC;
+                """
+            )
             rows = cursor.fetchall()
             return [
                 {
@@ -271,7 +297,8 @@ def get_search_profiles(profile_id=None):
                     "name": row[1],
                     "params": json.loads(row[2]),
                     "url": row[3],
-                    "last_updated": row[4]
+                    "last_updated": row[4],
+                    "ad_count": row[5]
                 }
                 for row in rows
             ]
