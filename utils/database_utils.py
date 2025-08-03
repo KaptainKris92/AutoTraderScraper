@@ -320,12 +320,22 @@ def search_profile_exists(params):
 # ---------------------------
 
 
-def delete_ads(ids_to_remove, table_name='ads'):
+def delete_ads_by_ad_id(ids_to_remove, table_name='ads'):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.executemany(
             f'DELETE FROM {table_name} WHERE "ad_id" = ?',
             [(ad_id,) for ad_id in ids_to_remove]
+        )
+        conn.commit()
+
+
+def delete_ads_by_search_id(search_id, table_name='ads'):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execut(
+            f'DELETE FROM {table_name} WHERE search_id = ?',
+            (search_id,)
         )
         conn.commit()
 

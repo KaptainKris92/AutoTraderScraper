@@ -49,7 +49,7 @@ export default function Settings() {
       alert("Please enter a valid postcode before saving the profile!");
       return;
     }
-    
+
     const url = await generateUrl();
     if (!url) return;
 
@@ -476,13 +476,13 @@ export default function Settings() {
     }));
   };
 
-  const fetchProfiles = async () => {      
+  const fetchProfiles = async () => {
     const res = await fetch("/api/search-profiles");
     const data = await res.json();
-    setProfiles(data.profiles);      
+    setProfiles(data.profiles);
   };
 
-  useEffect(() => {    
+  useEffect(() => {
     fetchProfiles();
   }, []); // The `[]` means it only runs once on intiial mount
 
@@ -502,7 +502,7 @@ export default function Settings() {
           make: (p.make || "").split(",").filter(Boolean),
           priceIndex: [
             priceSteps.indexOf(p.min_price),
-            priceSteps.indexOf(p.max_price),            
+            priceSteps.indexOf(p.max_price),
           ],
           mileageIndex: [
             mileageSteps.indexOf(p.min_mileage),
@@ -515,37 +515,37 @@ export default function Settings() {
         setGeneratedUrl(data.url);
       }
     } catch (err) {
-    console.error("Failed to load profile", err);
+      console.error("Failed to load profile", err);
     }
-  };  
-
+  };
 
   // Format `last_updated` date
   function formatDate(dateStr) {
     if (!dateStr) return "Unknown date";
     const trimmed = dateStr.split(".")[0]; // Remove microseconds so JS can process it
     const date = new Date(trimmed);
-    return isNaN(date.getTime()) ? "Unknown date" : date.toLocaleDateString("en-GB", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
+    return isNaN(date.getTime())
+      ? "Unknown date"
+      : date.toLocaleDateString("en-GB", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
   }
 
   return (
     <div className="flex">
-
       {/* Sidebar */}
       <div className="w-1/4 pr-4 border-r">
         <h2 className="font-bold mb-2">Saved Profiles</h2>
 
-        {profiles.length === 0 && (        
+        {profiles.length === 0 && (
           <p className="text-sm text-gray-400 italic">No profiles found</p>
         )}
 
-        {/* Individual profiles */}
+        {/* Individual profile cards */}
         <ul className="space-y-2">
           {profiles.map((p) => (
             <li
@@ -556,7 +556,7 @@ export default function Settings() {
                   : "bg-white"
               }`}
             >
-              {/* Name & Date */}
+              {/* First row */}
               <div
                 onClick={() => {
                   loadProfileIntoForm(p.id);
@@ -569,45 +569,59 @@ export default function Settings() {
                   {formatDate(p.last_updated)}
                 </span>
               </div>
-              
-              {/* Button row */}
+
+              {/* 2nd row */}
               <div className="flex justify-between items-center mt-2">
                 {/* Button group */}
                 <div className="flex gap-2">
-                <button
-                  className="text-sm bg-red-500 text-white px-2 py-1 rounded"
-                  onClick={async () => {
-                    await fetch(`/api/delete-search-profile/${p.id}`, {
-                      method: "DELETE",
-                    });
-                    setProfiles((prev) => prev.filter((x) => x.id !== p.id));
-                    if (selectedProfileId === p.id) setSelectedProfileId(null);
-                  }}
-                >
-                  Delete
-                </button>
-                <button
-                  className="text-sm bg-green-600 text-white px-2 py-1 rounded"
-                  onClick={async () => {
-                    const res = await fetch(`/api/run-scraper/${p.id}`, { method: "POST" });
-                    const data = await res.json();
 
-                    if (res.ok){
-                      setSelectedProfileId(p.id); 
-                      setShowScrapeModal(true);
-                    } else {
-                      alert("Failed to start scraping for " + p.name + " " + data.error);
-                    }                    
-                  }}
-                >
-                  Update Table
-                </button>
+                  {/* Delete */}
+                  <button
+                    className="text-sm bg-red-500 text-white px-2 py-1 rounded"
+                    onClick={async () => {
+                      await fetch(`/api/delete-search-profile/${p.id}`, {
+                        method: "DELETE",
+                      });
+                      setProfiles((prev) => prev.filter((x) => x.id !== p.id));
+                      if (selectedProfileId === p.id)
+                        setSelectedProfileId(null);
+
+                      alert("Deleted profile and associated ads.")
+                    }}
+                  >
+                    Delete
+                  </button>
+                  
+                  {/* Update */}
+                  <button
+                    className="text-sm bg-green-600 text-white px-2 py-1 rounded"
+                    onClick={async () => {
+                      const res = await fetch(`/api/run-scraper/${p.id}`, {
+                        method: "POST",
+                      });
+                      const data = await res.json();
+
+                      if (res.ok) {
+                        setSelectedProfileId(p.id);
+                        setShowScrapeModal(true);
+                      } else {
+                        alert(
+                          "Failed to start scraping for " +
+                            p.name +
+                            " " +
+                            data.error
+                        );
+                      }
+                    }}
+                  >
+                    Update Table
+                  </button>
                 </div>
                 {/* Ad count */}
-                <div className = "text-sm text-gray-500 whitespace-nowrap">
+                <div className="text-sm text-gray-500 whitespace-nowrap">
                   {p.ad_count ?? 0} ads
-                </div>         
-              </div>     
+                </div>
+              </div>
             </li>
           ))}
         </ul>
@@ -732,14 +746,20 @@ export default function Settings() {
               </label>
               <Select
                 isMulti
-                options={trasmissionOptions.map((t) => ({ label: t, value: t }))}
+                options={trasmissionOptions.map((t) => ({
+                  label: t,
+                  value: t,
+                }))}
                 onChange={handleTransmissionChange}
-                value={formData.transmission.map((t) => ({ label: t, value: t }))}
+                value={formData.transmission.map((t) => ({
+                  label: t,
+                  value: t,
+                }))}
               />
             </div>
           </div>
 
-          {/* Buttons */}
+          {/* Save profile */}
           <div className="flex gap-4 mt-4">
             <button
               type="button"
@@ -750,7 +770,6 @@ export default function Settings() {
             >
               Save Search Profile
             </button>
-
           </div>
 
           {/* Debug + URL */}
@@ -771,7 +790,6 @@ export default function Settings() {
               </div>
             )}
           </div>
-
         </form>
       </div>
 
@@ -783,7 +801,7 @@ export default function Settings() {
             setShowScrapeModal(false);
             fetchProfiles();
           }}
-          />
+        />
       )}
     </div>
   );
