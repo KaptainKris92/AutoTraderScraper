@@ -135,7 +135,7 @@ export default function GalleryViewer({
       if (swipeX === -1) handleNext();
       if (swipeX === 1) handlePrev();
     },
-    { axis: "x", swipe: { velocity: 0.2, distance: 30 } }
+    { axis: "x", swipe: { velocity: 0.2, distance: 30 }, pointer: { touch: true }, preventDefault: true, }
   );
 
   // Scrolls image into view
@@ -277,15 +277,19 @@ export default function GalleryViewer({
           {/* Image */}
           <div
             id="gallery-container"
-            {...bind()}
             ref={galleryRef}
-            className="w-full h-full flex items-center justify-center"
+            className="flex items-center justify-center w-full h-full"
           >
-            <img
-              src={images[currentIndex]}
-              alt={`Image ${currentIndex + 1}`}
-              className="max-w-full max-h-[80vh] object-contain"
-            />
+            <div
+              {...bind()}
+              className="w-full h-full flex items-center justify-center"
+            >
+              <img
+                src={images[currentIndex]}
+                alt={`Image ${currentIndex + 1}`}
+                className="max-w-full max-h-[80vh] object-contain"
+              />
+            </div>
           </div>
 
           {/* OCR Button */}

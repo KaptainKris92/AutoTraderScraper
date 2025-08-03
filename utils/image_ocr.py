@@ -31,15 +31,16 @@ def preprocess_image(path, debug_path=None):
     # filtered = cv2.bilateralFilter(enhanced, 11, 17, 17)
 
     # Thresholding
-    _, thresh = cv2.threshold(
-        filtered, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    # _, thresh = cv2.threshold(
+    #     filtered, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
     # Save preprocessed image for debugging
     if debug_path:
         os.makedirs(os.path.dirname(debug_path), exist_ok=True)
-        cv2.imwrite(debug_path, thresh)
+        # cv2.imwrite(debug_path, thresh)
+        cv2.imwrite(debug_path, filtered)
 
-    return thresh
+    return filtered
 
 
 def clean_and_match_plates(ocr_texts):
