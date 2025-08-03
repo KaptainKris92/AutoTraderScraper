@@ -284,7 +284,15 @@ def api_download_pictures():
 
     image_dir = Path('images') / ad_id
     if image_dir.exists() and any(image_dir.glob('.jpg')):
-        print(f'Skipping download. Images already exist for {ad_id}')
+        count = len(list(image_dir.glob("*.jpg")))
+        print(
+            f'Skipping download. Images already exist for {ad_id} ({count} images)')
+        download_status[ad_id] = {
+            'status': 'Complete.',
+            'current': count,
+            'total': count
+        }
+
         return jsonify({'success': True, 'skipped': True})
 
     download_status[ad_id] = {
@@ -317,7 +325,11 @@ def api_download_pictures():
             download_pictures(
                 ad_id, ad_url, progress_callback=progress_callback)
         finally:
-            download_status.pop(ad_id, None)
+            download_status[ad_id] = {
+                'status': 'Complete.',
+                'current': download_status[ad_id].get('total', 1),
+                'total': download_status[ad_id].get('total', 1)
+            }
 
     # Launch in background thread to avoid blocking Flask
     threading.Thread(target=run_download).start()

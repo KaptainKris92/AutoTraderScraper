@@ -2,13 +2,21 @@ import { useEffect, useState, useRef } from "react";
 import { useDrag } from "@use-gesture/react";
 import { useModalHistory } from "../hooks/useModalHistory";
 
-export default function GalleryViewer({ adId, onClose, onImageChange, ready, onRegConfirmed }) {
+export default function GalleryViewer({
+  adId,
+  onClose,
+  onImageChange,
+  ready,
+  onRegConfirmed,
+}) {
   useModalHistory(onClose);
 
   const [images, setImages] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true); // Starts as 'Loading...'
+
   const [progressStatus, setProgressStatus] = useState("Starting...");
+  const pollingDoneRef = useRef(false);
 
   const galleryRef = useRef(null);
 
@@ -16,65 +24,99 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready, onR
   const [showConfirm, setShowConfirm] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
 
-  const [motLoading, setMotLoading] = useState(false);  
+  const [motLoading, setMotLoading] = useState(false);
 
-  // Fetch gallery image URLs
+  // Poll download progress
+  useEffect(() => {
+    if (!ready || pollingDoneRef.current) return;
+
+    let intervalId;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/download-progress/${adId}`);
+        const data = await res.json();
+        setProgressStatus(data.status);
+
+        if (data.current === data.total && data.total !== 0) {
+          pollingDoneRef.current = true;
+          clearInterval(intervalId);
+        }
+      } catch (err) {
+        console.error("Progress polling failed", err);
+        clearInterval(intervalId);
+      }
+    };
+
+    intervalId = setInterval(poll, 1000);
+    poll(); // Run once immediately
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [adId, ready]);
+
+  // Reset polling when adId changes
+  useEffect(() => {
+    pollingDoneRef.current = false;
+  }, [adId]);
+
+  // Fetch gallery images from disk
   useEffect(() => {
     if (!ready) return;
 
-    const loadImages = async () => {
+    const fetchImages = async () => {
       try {
         const res = await fetch(`/api/image-count/${adId}`);
         const data = await res.json();
         const count = data.count;
 
-        const urls = Array.from(
-          { length: count },
-          (_, i) =>
-            `/api/gallery-image/${adId}/${String(i + 1).padStart(2, "0")}`
-        );
-
-        setImages(urls);
-        setLoading(false);
+        if (count > 0) {
+          const urls = Array.from(
+            { length: count },
+            (_, i) =>
+              `/api/gallery-image/${adId}/${String(i + 1).padStart(2, "0")}`
+          );
+          setImages(urls);
+        } else {
+          setImages([]);
+        }
       } catch (err) {
-        console.error("Failed to fetch image count", err);
-        setLoading(false);
+        console.error("Failed to fetch gallery images:", err);
+        setImages([]);
       }
     };
 
-    loadImages();
+    fetchImages();
   }, [adId, ready]);
 
-  // Poll download progress
+  // Set loading to false when download is complete
   useEffect(() => {
     if (!ready) return;
 
-    let intervalId;
+    // Case 0: already downloaded, but progress status is Idle
+    if (progressStatus === "Idle" && images.length > 0) {
+      setLoading(false);
+      return;
+    }
 
-    const startPolling = () => {
-      intervalId = setInterval(async () => {
-        try {
-          const res = await fetch(`/api/download-progress/${adId}`);
-          const data = await res.json();
-          setProgressStatus(data.status);
+    // Case 1: explicit "Complete." string
+    if (progressStatus === "Complete.") {
+      setLoading(false);
+      return;
+    }
 
-          if (data.current === data.total && data.total !== 0) {
-            clearInterval(intervalId);
-          }
-        } catch (err) {
-          console.error("Progress polling failed", err);
-          clearInterval(intervalId);
+    // Case 2: downloading X/X images
+    if (progressStatus.toLowerCase().includes("downloading")) {
+      const match = progressStatus.match(/(\d+)\/(\d+)/);
+      if (match) {
+        const [, current, total] = match.map(Number);
+        if (current === total && total !== 0) {
+          setLoading(false);
         }
-      }, 1000);
-    };
-
-    const timeoutId = setTimeout(startPolling, 1000);
-
-    return () => {
-      clearTimeout(timeoutId);
-      clearInterval(intervalId);
-    };
-  }, [adId, ready]);
+      }
+    }
+  }, [progressStatus, ready, images.length]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -136,7 +178,7 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready, onR
       const res = await fetch(`/api/ocr-single/${adId}/${imgNumber}`);
       const data = await res.json();
 
-      console.log(adId, imgNumber, data)
+      console.log(adId, imgNumber, data);
 
       if (!data || !data.plates || data.plates.length === 0) {
         alert("No registration plates found.");
@@ -179,11 +221,13 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready, onR
       alert("✅ MOT history saved and linked.");
       onImageChange(images[currentIndex]);
       setShowConfirm(false);
-      onClose();      
+      onClose();
     } catch (err) {
       console.error("Failed to confirm reg:", err);
       alert("Failed to fetch and bind MOT data.");
-    } finally {setMotLoading(true)}        
+    } finally {
+      setMotLoading(true);
+    }
   };
 
   {
@@ -243,7 +287,7 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready, onR
               className="max-w-full max-h-[80vh] object-contain"
             />
           </div>
-          
+
           {/* OCR Button */}
           <div className="mt-4 flex justify-center">
             <button
