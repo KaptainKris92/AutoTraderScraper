@@ -558,7 +558,10 @@ export default function Settings() {
             >
               {/* Name & Date */}
               <div
-                onClick={() => loadProfileIntoForm(p.id)}
+                onClick={() => {
+                  loadProfileIntoForm(p.id);
+                  localStorage.setItem("activeSearchId", p.id);
+                }}
                 className="flex justify-between items-center"
               >
                 <span className="font-medium">{p.name}</span>
