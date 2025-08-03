@@ -23,11 +23,12 @@ def preprocess_image(path, debug_path=None):
     gray = crop_likely_plate_region(gray)
 
     # CLAHE contrast enhancement
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    enhanced = clahe.apply(gray)
+    # clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    # enhanced = clahe.apply(gray)
 
     # Apply bilateral filter (denoise)
-    filtered = cv2.bilateralFilter(enhanced, 11, 17, 17)
+    filtered = filtered = cv2.bilateralFilter(gray, 11, 17, 17)
+    # filtered = cv2.bilateralFilter(enhanced, 11, 17, 17)
 
     # Thresholding
     _, thresh = cv2.threshold(
