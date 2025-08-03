@@ -10,6 +10,7 @@ export default function CardViewer({
   updateFavourite,
   updateExclude,
   profileName,
+  updateAdThumbnail,
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showMOTModal, setShowMOTModal] = useState(false);
@@ -272,15 +273,14 @@ export default function CardViewer({
           )}
         </div>
         {!galleryOpen && (
-        <button
-          onClick={() => setShowMOTModal(true)}
-          className="fixed bottom-2 right-5 z-50 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg"
-          title="MOT History"
-        >
-          <FaCar className="text-xl" />
-        </button>
+          <button
+            onClick={() => setShowMOTModal(true)}
+            className="fixed bottom-2 right-5 z-50 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg"
+            title="MOT History"
+          >
+            <FaCar className="text-xl" />
+          </button>
         )}
-
 
         {showMOTModal && (
           <MOTHistoryModal onClose={() => setShowMOTModal(false)} />
@@ -291,7 +291,8 @@ export default function CardViewer({
             adId={currentAd.ad_id}
             onClose={() => setGalleryOpen(false)}
             onImageChange={(img) => {
-              setGalleryOpen(false); // Close gallery on image change
+              updateAdThumbnail(currentAd.ad_id, img); 
+              setGalleryOpen(false); 
             }}
             ready={galleryReady}
             onRegConfirmed={() => setRefreshKey(Date.now())}

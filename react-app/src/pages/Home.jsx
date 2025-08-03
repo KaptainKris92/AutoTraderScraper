@@ -71,29 +71,38 @@ export default function Home() {
         });
     };
 
+    const updateAdThumbnail = (adId, newThumbnail) => {
+      setAds((prevAds) =>
+        prevAds.map((ad) =>
+          ad.ad_id === adId ? { ...ad, thumbnail: newThumbnail } : ad
+        )
+      );
+    };
+
+
     const filteredAds = ads.filter(ad => ad.excluded !== 1); // Don't show excluded ads
 
     return (
-        <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-start py-2 sm:pt-10 space-y-6">
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-start py-2 sm:pt-10 space-y-6">
         <SortControls
-            sortBy={sortBy}
-            sortDirection={sortDirection}
-            setSortBy={setSortBy}
-            setSortDirection={setSortDirection}
-            setSearchParams={setSearchParams}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          setSortBy={setSortBy}
+          setSortDirection={setSortDirection}
+          setSearchParams={setSearchParams}
         />
 
         {ads.length > 0 ? (
-            <CardViewer
+          <CardViewer
             ads={filteredAds}
             updateFavourite={updateFavourite}
             updateExclude={updateExclude}
-            activeSearchId={localStorage.getItem("activeSearchId")}
             profileName={localStorage.getItem("activeSearchName")}
-            />
+            updateAdThumbnail={updateAdThumbnail} 
+          />
         ) : (
-            <p>Loading ads...</p>
+          <p>Loading ads...</p>
         )}
-        </div>
+      </div>
     );
 }

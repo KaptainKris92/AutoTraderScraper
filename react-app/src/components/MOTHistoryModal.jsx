@@ -345,33 +345,64 @@ export default function MOTHistoryModal({ onClose, adId, initialReg }) {
         {/* MOT history */}
         {activeHistory && (
           <>
-            {/* Car info div */}
-            <div className="text-sm text-gray-600 mb-2">
+            {/* Car name and next MOT data */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+              {/* Car info div */}
               {/* Make and model */}
               <span
                 className="font-bold text-black"
                 style={{ fontSize: "30px" }}
               >
                 {activeHistory.data.make} {activeHistory.data.model}
+                {!showRegSelector && (
+                  <span
+                    className="ml-2 text-gray-700 text-base"
+                    // style={{ fontSize: "14px" }}
+                  >
+                    ({activeHistory.registration})
+                  </span>
+                )}
               </span>
-              {!showRegSelector && (
-                <span
-                  className="ml-2 text-gray-700"
-                  style={{ fontSize: "14px" }}
-                >
-                  ({activeHistory.registration})
-                </span>
-              )}
+              {/* Time until next MOT */}
+              {activeHistory.data.motTests?.length > 0 &&
+                (() => {
+                  const latestDateStr = activeHistory.data.motTests
+                    .map((t) => new Date(t.completedDate))
+                    .sort((a, b) => b - a)[0];
+                  const nextMOTDate = new Date(latestDateStr);
+                  nextMOTDate.setFullYear(nextMOTDate.getFullYear() + 1);
 
-              {/* Delete button */}
-              <div className="mt-1 flex gap-2">
-                <button
-                  onClick={() => handleDelete(activeHistory.registration)}
-                  className="text-xs text-red-600 hover:underline flex items-center gap-1"
-                >
-                  <FaTrash /> Delete
-                </button>
-              </div>
+                  const now = new Date();
+                  const diffMs = nextMOTDate - now;
+                  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                  const timeText =
+                    diffDays < 0
+                      ? "Expired"
+                      : diffDays < 30
+                      ? `${diffDays} day${diffDays !== 1 ? "s" : ""}`
+                      : diffDays < 60
+                      ? `~1 month`
+                      : diffDays < 365
+                      ? `~${Math.round(diffDays / 30)} months`
+                      : `>1 year`;
+
+                  return (
+                    <span className="text-sm text-gray-700 mt-2 sm:mt-0">
+                      Next MOT due: <strong>{timeText}</strong> (
+                      {nextMOTDate.toLocaleDateString()})
+                    </span>
+                  );
+                })()}
+            </div>
+
+            {/* Delete button */}
+            <div className="mt-1 flex gap-2">
+              <button
+                onClick={() => handleDelete(activeHistory.registration)}
+                className="text-xs text-red-600 hover:underline flex items-center gap-1"
+              >
+                <FaTrash /> Delete
+              </button>
             </div>
 
             {/* Unbind button */}

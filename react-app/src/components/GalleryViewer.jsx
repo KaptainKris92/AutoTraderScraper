@@ -26,6 +26,8 @@ export default function GalleryViewer({
 
   const [motLoading, setMotLoading] = useState(false);
 
+  const [regInput, setRegInput] = useState("");
+
   // Poll download progress
   useEffect(() => {
     if (!ready || pollingDoneRef.current) return;
@@ -59,7 +61,6 @@ export default function GalleryViewer({
       clearInterval(intervalId);
     };
   }, [adId, ready, images.length]);
-
 
   // Fetch gallery images from disk
   useEffect(() => {
@@ -135,7 +136,12 @@ export default function GalleryViewer({
       if (swipeX === -1) handleNext();
       if (swipeX === 1) handlePrev();
     },
-    { axis: "x", swipe: { velocity: 0.2, distance: 30 }, pointer: { touch: true }, preventDefault: true, }
+    {
+      axis: "x",
+      swipe: { velocity: 0.2, distance: 30 },
+      pointer: { touch: true },
+      preventDefault: true,
+    }
   );
 
   // Scrolls image into view
@@ -230,6 +236,37 @@ export default function GalleryViewer({
     }
   };
 
+  
+
+  const handleQuickReg = async () => {
+    const cleanReg = regInput.replace(/\s+/g, "").toUpperCase();
+    try {
+      const res = await fetch(
+        `/api/mot_history/query?reg=${encodeURIComponent(cleanReg)}`
+      );
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      await fetch("/api/mot_history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          registration: cleanReg,
+          data,
+          ad_id: adId,
+        }),
+      });
+
+      if (onRegConfirmed) onRegConfirmed();
+
+      alert("✅ MOT history saved and linked.");
+      setRegInput("");
+    } catch (err) {
+      console.error("Quick reg MOT failed:", err);
+      alert("❌ Failed to fetch MOT history for that reg.");
+    }
+  };
+
   {
     progressStatus && (
       <div className="text-center mt-4 text-sm text-gray-400">
@@ -290,6 +327,23 @@ export default function GalleryViewer({
                 className="max-w-full max-h-[80vh] object-contain"
               />
             </div>
+          </div>
+
+          {/* Quick Reg input + search */}
+          <div className="mt-4 flex gap-2 items-center justify-center">
+            <input
+              type="text"
+              placeholder="Enter Reg"
+              value={regInput}
+              onChange={(e) => setRegInput(e.target.value.toUpperCase())}
+              className="text-sm text-center border p-1 rounded w-28"
+            />
+            <button
+              onClick={handleQuickReg}
+              className="text-sm px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Search MOT
+            </button>
           </div>
 
           {/* OCR Button */}
