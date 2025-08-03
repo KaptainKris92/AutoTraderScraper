@@ -5,6 +5,92 @@ import Select from "react-select";
 import ScrapeProgressModal from "../components/ScrapeProgressModal";
 
 export default function Settings() {
+  // Sidebar state
+  const [showSidebar, setShowSidebar] = useState(false);
+
+  function renderProfiles() {
+    return (
+      <>
+        {profiles.length === 0 && (
+          <p className="text-sm text-gray-400 italic">No profiles found</p>
+        )}
+
+        <ul className="space-y-2">
+          {profiles.map((p) => (
+            <li
+              key={p.id}
+              onClick={() => {
+                loadProfileIntoForm(p.id);
+                localStorage.setItem("activeSearchId", p.id);
+                localStorage.setItem("activeSearchName", p.name);
+                setShowSidebar(false);
+              }}
+              className={`p-2 border rounded cursor-pointer ${
+                selectedProfileId === p.id
+                  ? "bg-blue-100 border-blue-600"
+                  : "bg-white"
+              }`}
+            >
+              <div className="flex justify-between items-center">
+                <span className="font-medium">{p.name}</span>
+                <span className="text-sm text-gray-500">
+                  {formatDate(p.last_updated)}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center mt-2">
+                <div className="flex gap-2">
+                  <button
+                    className="text-sm bg-red-500 text-white px-2 py-1 rounded"
+                    onClick={async (e) => {
+                      e.stopPropagation(); // prevent li click
+                      await fetch(`/api/delete-search-profile/${p.id}`, {
+                        method: "DELETE",
+                      });
+                      setProfiles((prev) => prev.filter((x) => x.id !== p.id));
+                      if (selectedProfileId === p.id)
+                        setSelectedProfileId(null);
+                      alert("Deleted profile and associated ads.");
+                    }}
+                  >
+                    Delete
+                  </button>
+
+                  <button
+                    className="text-sm bg-green-600 text-white px-2 py-1 rounded"
+                    onClick={async (e) => {
+                      e.stopPropagation(); // prevent li click
+                      const res = await fetch(`/api/run-scraper/${p.id}`, {
+                        method: "POST",
+                      });
+                      const data = await res.json();
+                      if (res.ok) {
+                        setSelectedProfileId(p.id);
+                        setShowScrapeModal(true);
+                      } else {
+                        alert(
+                          "Failed to start scraping for " +
+                            p.name +
+                            " " +
+                            data.error
+                        );
+                      }
+                    }}
+                  >
+                    Update Table
+                  </button>
+                </div>
+                <div className="text-sm text-gray-500 whitespace-nowrap">
+                  {p.ad_count ?? 0} ads
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </>
+    );
+  }
+
   const [generatedUrl, setGeneratedUrl] = useState(""); // For debugging
   // Existing profiles
   const [profileName, setProfileName] = useState("");
@@ -537,95 +623,44 @@ export default function Settings() {
 
   return (
     <div className="flex">
-      {/* Sidebar */}
-      <div className="w-1/4 pr-4 border-r">
-        <h2 className="font-bold mb-2">Saved Profiles</h2>
-
-        {profiles.length === 0 && (
-          <p className="text-sm text-gray-400 italic">No profiles found</p>
-        )}
-
-        {/* Individual profile cards */}
-        <ul className="space-y-2">
-          {profiles.map((p) => (
-            <li
-              key={p.id}
-              className={`p-2 border rounded cursor-pointer ${
-                selectedProfileId === p.id
-                  ? "bg-blue-100 border-blue-600"
-                  : "bg-white"
-              }`}
-            >
-              {/* First row */}
-              <div
-                onClick={() => {
-                  loadProfileIntoForm(p.id);
-                  localStorage.setItem("activeSearchId", p.id);
-                  localStorage.setItem("activeSearchName", p.name);
-                }}
-                className="flex justify-between items-center"
+      {/* Sidebar drawer for mobile */}
+      {showSidebar && (
+        <div
+          className="fixed inset-0 z-50 bg-black bg-opacity-40 md:hidden"
+          onClick={() => setShowSidebar(false)}
+        >
+          <div
+            className="bg-white w-3/4 h-full p-4 overflow-y-auto"
+            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-bold text-lg">Saved Profiles</h2>
+              <button
+                onClick={() => setShowSidebar(false)}
+                className="text-gray-500 hover:text-gray-700"
               >
-                <span className="font-medium">{p.name}</span>
-                <span className="text-sm text-gray-500">
-                  {formatDate(p.last_updated)}
-                </span>
-              </div>
+                ✕
+              </button>
+            </div>
+            {renderProfiles()}{" "}
+          </div>
+        </div>
+      )}
 
-              {/* 2nd row */}
-              <div className="flex justify-between items-center mt-2">
-                {/* Button group */}
-                <div className="flex gap-2">
+      {/* Inline sidebar for desktop */}
+      <div className="hidden md:block w-1/4 pr-4 border-r">
+        <h2 className="font-bold mb-2">Saved Profiles</h2>
+        {renderProfiles()}
+      </div>
 
-                  {/* Delete */}
-                  <button
-                    className="text-sm bg-red-500 text-white px-2 py-1 rounded"
-                    onClick={async () => {
-                      await fetch(`/api/delete-search-profile/${p.id}`, {
-                        method: "DELETE",
-                      });
-                      setProfiles((prev) => prev.filter((x) => x.id !== p.id));
-                      if (selectedProfileId === p.id)
-                        setSelectedProfileId(null);
-
-                      alert("Deleted profile and associated ads.")
-                    }}
-                  >
-                    Delete
-                  </button>
-                  
-                  {/* Update */}
-                  <button
-                    className="text-sm bg-green-600 text-white px-2 py-1 rounded"
-                    onClick={async () => {
-                      const res = await fetch(`/api/run-scraper/${p.id}`, {
-                        method: "POST",
-                      });
-                      const data = await res.json();
-
-                      if (res.ok) {
-                        setSelectedProfileId(p.id);
-                        setShowScrapeModal(true);
-                      } else {
-                        alert(
-                          "Failed to start scraping for " +
-                            p.name +
-                            " " +
-                            data.error
-                        );
-                      }
-                    }}
-                  >
-                    Update Table
-                  </button>
-                </div>
-                {/* Ad count */}
-                <div className="text-sm text-gray-500 whitespace-nowrap">
-                  {p.ad_count ?? 0} ads
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
+      {/* Sidebar toggle icon */}
+      <div className="absolute bottom-4 right-4 z-50 md:hidden">
+        <button
+          onClick={() => setShowSidebar((prev) => !prev)}
+          className="p-2 bg-blue-600 text-white rounded shadow"
+        >
+          ☰ Profiles
+        </button>
       </div>
 
       {/* Settings parameters */}
