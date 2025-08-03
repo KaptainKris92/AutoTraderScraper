@@ -1,8 +1,25 @@
 import easyocr
 import re
 import os
+import cv2
+import numpy as np
 
-# Move to new 'image_ocr.py'?
+
+def preprocess_image(path):
+    img = cv2.imread(path)
+
+    # Convert to grayscale
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # Apply bilateral filter to reduce noise but keep edges sharp
+    filtered = cv2.bilateralFilter(gray, 11, 17, 17)
+
+    # Use adaptive thresholding
+    thresh = cv2.adaptiveThreshold(
+        filtered, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+    )
+
+    return thresh
 
 
 def clean_and_match_plates(ocr_texts):
@@ -26,42 +43,24 @@ def clean_and_match_plates(ocr_texts):
             text = ''.join(chars)
 
         # Match UK plate pattern
-        matches = re.findall(r"\b[A-Z]{2}\d{2}\s?[A-Z]{3}\b", text)
+        matches = re.findall(r"\b[A-Z]{2}[\dIOL]{2}\s?[A-Z]{3}\b", text)
         plate_candidates.update(matches)
 
     return plate_candidates
 
-# Read registration plates from images
-
-
-def ocr_reg_plate(ad_id):
-    folder = f'images/{ad_id}'
-    reader = easyocr.Reader(['en'], gpu=True)
-
-    all_texts = []
-
-    for filename in os.listdir(folder):
-        if filename.lower().endswith((".jpg", ".jpeg", ".png")):
-            img_path = os.path.join(folder, filename)
-            try:
-                results = reader.readtext(img_path, detail=0, paragraph=False)
-                all_texts.extend(results)
-
-            except Exception as e:
-                print(f"Failed to process {filename}: {e}")
-
-    plate_set = clean_and_match_plates(all_texts)
-
-    print(f"Possible plates for {ad_id}: {plate_set}")
-    return plate_set
+# Find reg plate from single image
 
 
 def ocr_reg_plate_single(ad_id, image_index):
     reader = easyocr.Reader(['en'], gpu=True)
     img_path = f'images/{ad_id}/{str(image_index).zfill(2)}.jpg'
     try:
+        # preprocessed_img = preprocess_image(img_path)
         results = reader.readtext(img_path, detail=0, paragraph=False)
+
+        print(f"All texts found: {results}")
         plate_set = clean_and_match_plates(results)
+        print(f"Possible plates: {plate_set}")
         return list(plate_set)
     except Exception as e:
         print(f'❌ OCR failed on {img_path}: {e}')

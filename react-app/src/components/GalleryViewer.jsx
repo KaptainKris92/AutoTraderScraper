@@ -235,7 +235,7 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready, onR
             id="gallery-container"
             {...bind()}
             ref={galleryRef}
-            className="w-full h-full flex items-center justify-center"
+            className="w-full h-full flex items-center justify-center touch-none"
           >
             <img
               src={images[currentIndex]}
