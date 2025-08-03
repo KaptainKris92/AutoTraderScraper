@@ -16,7 +16,7 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready, onR
   const [showConfirm, setShowConfirm] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
 
-  const [motLoading, setMotLoading] = useState(false);
+  const [motLoading, setMotLoading] = useState(false);  
 
   // Fetch gallery image URLs
   useEffect(() => {
@@ -153,7 +153,7 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready, onR
   };
 
   const handleConfirmReg = async () => {
-    setModalLoading(true);
+    setMotLoading(true);
     setShowConfirm(false);
 
     try {
