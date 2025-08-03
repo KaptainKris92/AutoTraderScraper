@@ -4,7 +4,7 @@ import { FaHeart, FaTimes, FaCar } from "react-icons/fa";
 import { useDrag } from '@use-gesture/react'; // For mobile swiping
 import MOTHistoryModal from "./MOTHistoryModal";
 
-export default function CardViewer({ ads, updateFavourite, updateExclude }) {
+export default function CardViewer({ ads, updateFavourite, updateExclude, profileName }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showMOTModal, setShowMOTModal] = useState(false);
   const [showFavouritesOnly, setShowFavouritesOnly] = useState(false);
@@ -24,6 +24,7 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
   };
 
   useEffect(() => {
+    console.log(profileName)
     // Reset index if filter changes and currentIndex becomes invalid
     if (currentIndex >= filteredAds.length) {
       setCurrentIndex(0);
@@ -104,16 +105,28 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
     currentAd && (
       <div className="relative min-h-screen flex flex-col items-center justify-start pt-2 pb-14">          
 
-        {/* Filter favourites toggle */}
-        <div className="flex items-center mb-2 gap-2">
-          <input
-            type="checkbox"
-            id="favOnlyToggle"
-            checked={showFavouritesOnly}
-            onChange={() => setShowFavouritesOnly(val => !val)}
-            className="w-4 h-4"
-          />
-          <label htmlFor="favOnlyToggle" className="text-sm text-gray-700">Favourites only</label>
+        {/* Filter favourites toggle, profile name, and ad index*/}
+        <div className = "flex items-center justify-between w-full max-w-2xl mb-2 px-4 text-sm text-gray-600">
+          {/* Favourites checkbox */}
+          <div className="flex items-center mb-2 gap-2">
+            <input
+              type="checkbox"
+              id="favOnlyToggle"
+              checked={showFavouritesOnly}
+              onChange={() => setShowFavouritesOnly(val => !val)}
+              className="w-4 h-4"
+            />
+            <label htmlFor="favOnlyToggle" className="text-sm text-gray-700">Favourites only</label>
+          </div>
+
+          {/* Profile name and index */}
+          <div className="text-right text-xs sm:text-sm text-gray-600 whitespace-nowrap">
+            {profileName && <div className="font-semibold">{profileName}</div>}
+            {filteredAds.length > 0 && (
+              <div>{currentIndex + 1} / {filteredAds.length}</div>
+            )}
+          </div>
+          
         </div>
         
         {/* Card & Arrows */}

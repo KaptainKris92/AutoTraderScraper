@@ -18,6 +18,7 @@ export default function Home() {
     useEffect(() => {
 
         const activeSearchId = localStorage.getItem("activeSearchId");
+        const activeSearchName = localStorage.getItem("activeSearchName");
         const apiUrl = activeSearchId
             ? `/api/ads?search_id=${activeSearchId}`
             : "/api/ads";            
@@ -87,6 +88,8 @@ export default function Home() {
             ads={filteredAds}
             updateFavourite={updateFavourite}
             updateExclude={updateExclude}
+            activeSearchId={localStorage.getItem("activeSearchId")}
+            profileName={localStorage.getItem("activeSearchName")}
             />
         ) : (
             <p>Loading ads...</p>

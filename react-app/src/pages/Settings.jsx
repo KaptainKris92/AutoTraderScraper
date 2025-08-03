@@ -561,6 +561,7 @@ export default function Settings() {
                 onClick={() => {
                   loadProfileIntoForm(p.id);
                   localStorage.setItem("activeSearchId", p.id);
+                  localStorage.setItem("activeSearchName", p.name);
                 }}
                 className="flex justify-between items-center"
               >
