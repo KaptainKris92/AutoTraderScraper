@@ -1,6 +1,10 @@
-import easyocr, re, os
+import easyocr
+import re
+import os
 
 # Move to new 'image_ocr.py'?
+
+
 def clean_and_match_plates(ocr_texts):
     plate_candidates = set()
     for raw in ocr_texts:
@@ -28,23 +32,37 @@ def clean_and_match_plates(ocr_texts):
     return plate_candidates
 
 # Read registration plates from images
+
+
 def ocr_reg_plate(ad_id):
     folder = f'images/{ad_id}'
-    reader = easyocr.Reader(['en'], gpu = True)
-    
+    reader = easyocr.Reader(['en'], gpu=True)
+
     all_texts = []
-        
+
     for filename in os.listdir(folder):
         if filename.lower().endswith((".jpg", ".jpeg", ".png")):
             img_path = os.path.join(folder, filename)
             try:
-                results = reader.readtext(img_path, detail = 0, paragraph = False)
+                results = reader.readtext(img_path, detail=0, paragraph=False)
                 all_texts.extend(results)
 
             except Exception as e:
                 print(f"Failed to process {filename}: {e}")
-                
+
     plate_set = clean_and_match_plates(all_texts)
-                    
-    print(f"Possible plates for {ad_id}: {plate_set}")    
+
+    print(f"Possible plates for {ad_id}: {plate_set}")
     return plate_set
+
+
+def ocr_reg_plate_single(ad_id, image_index):
+    reader = easyocr.Reader(['en'], gpu=True)
+    img_path = f'images/{ad_id}/{str(image_index).zfill(2)}.jpg'
+    try:
+        results = reader.readtext(img_path, detail=0, paragraph=False)
+        plate_set = clean_and_match_plates(results)
+        return list(plate_set)
+    except Exception as e:
+        print(f'❌ OCR failed on {img_path}: {e}')
+        return []

@@ -1,18 +1,23 @@
 import { useState, useRef, useEffect } from "react";
 import AdCard from "./AdCard";
 import { FaHeart, FaTimes, FaCar } from "react-icons/fa";
-import { useDrag } from '@use-gesture/react'; // For mobile swiping
+import { useDrag } from "@use-gesture/react"; // For mobile swiping
 import MOTHistoryModal from "./MOTHistoryModal";
 
-export default function CardViewer({ ads, updateFavourite, updateExclude, profileName }) {
+export default function CardViewer({
+  ads,
+  updateFavourite,
+  updateExclude,
+  profileName,
+}) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showMOTModal, setShowMOTModal] = useState(false);
   const [showFavouritesOnly, setShowFavouritesOnly] = useState(false);
 
   const filteredAds = showFavouritesOnly
-    ? ads.filter(ad => ad.favourited === 1)
+    ? ads.filter((ad) => ad.favourited === 1)
     : ads;
-  
+
   const currentAd = filteredAds.length > 0 ? filteredAds[currentIndex] : null;
 
   const next = () => {
@@ -24,12 +29,12 @@ export default function CardViewer({ ads, updateFavourite, updateExclude, profil
   };
 
   useEffect(() => {
-    console.log(profileName)
+    console.log(profileName);
     // Reset index if filter changes and currentIndex becomes invalid
     if (currentIndex >= filteredAds.length) {
       setCurrentIndex(0);
     }
-  }, [showFavouritesOnly, ads])
+  }, [showFavouritesOnly, ads]);
 
   // Swipe triggers
   const bind = useDrag(
@@ -38,18 +43,18 @@ export default function CardViewer({ ads, updateFavourite, updateExclude, profil
       if (modalOpen) return; // Don't swipe if a modal is open
 
       if (swipeX === -1) next(); // Left
-      if (swipeX === 1) prev(); // Right       
+      if (swipeX === 1) prev(); // Right
     },
-    { axis: undefined, swipe: { velocity: 0.2, distance: 30 }}
+    { axis: undefined, swipe: { velocity: 0.2, distance: 30 } }
   );
 
   // Keyboard triggers
   useEffect(() => {
     const handleKeyDown = (e) => {
-      
       // Ignore key events if focused on an input or textarea
-      const active = document.activeElement
-      const isTyping = active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")
+      const active = document.activeElement;
+      const isTyping =
+        active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA");
       if (isTyping) return;
 
       // Only listen if no modals are open
@@ -57,7 +62,7 @@ export default function CardViewer({ ads, updateFavourite, updateExclude, profil
       if (modalOpen) return;
 
       if (!currentAd || !currentAd.ad_id) return;
-      const adId = currentAd.ad_id;      
+      const adId = currentAd.ad_id;
 
       switch (e.key) {
         case "ArrowRight":
@@ -87,76 +92,86 @@ export default function CardViewer({ ads, updateFavourite, updateExclude, profil
   const cardRef = useRef(null);
 
   if (!filteredAds || filteredAds.length === 0) {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen text-gray-600">
-      <div className="mb-4">No ads to display.</div>
-      <button
-        onClick={() => setShowFavouritesOnly(false)}
-        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-      >
-        Show All Ads
-      </button>
-    </div>
-  );
-}
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-gray-600">
+        <div className="mb-4">No ads to display.</div>
+        <button
+          onClick={() => setShowFavouritesOnly(false)}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Show All Ads
+        </button>
+      </div>
+    );
+  }
 
   // RETURN
   return (
     currentAd && (
-      <div className="relative min-h-screen flex flex-col items-center justify-start pt-2 pb-14">          
-
+      <div className="relative min-h-screen flex flex-col items-center justify-start pt-2 pb-14">
         {/* Filter favourites toggle, profile name, and ad index*/}
-        <div className = "flex items-center justify-between w-full max-w-2xl mb-2 px-4 text-sm text-gray-600">
+        <div className="flex items-center justify-between w-full max-w-2xl mb-2 px-4 text-sm text-gray-600">
           {/* Favourites checkbox */}
           <div className="flex items-center mb-2 gap-2">
             <input
               type="checkbox"
               id="favOnlyToggle"
               checked={showFavouritesOnly}
-              onChange={() => setShowFavouritesOnly(val => !val)}
+              onChange={() => setShowFavouritesOnly((val) => !val)}
               className="w-4 h-4"
             />
-            <label htmlFor="favOnlyToggle" className="text-sm text-gray-700">Favourites only</label>
+            <label htmlFor="favOnlyToggle" className="text-sm text-gray-700">
+              Favourites only
+            </label>
           </div>
 
           {/* Profile name and index */}
           <div className="text-right text-xs sm:text-sm text-gray-600 whitespace-nowrap">
             {profileName && <div className="font-semibold">{profileName}</div>}
             {filteredAds.length > 0 && (
-              <div>{currentIndex + 1} / {filteredAds.length}</div>
+              <div>
+                {currentIndex + 1} / {filteredAds.length}
+              </div>
             )}
           </div>
-          
         </div>
-        
+
         {/* Card & Arrows */}
-        <div 
+        <div
           {...bind()}
           ref={cardRef}
           className="relative flex items-center justify-center w-full max-w-2xl min-h-[540px] touch-none"
         >
           {/* Arrows */}
           <>
-          <button
-            onClick={prev}
-            className="absolute left-[-2.5rem] text-3xl text-gray-500 hover:text-black transition hidden sm:block"
-          >
-            ◀
-          </button>
+            <button
+              onClick={prev}
+              className="absolute left-[-2.5rem] text-3xl text-gray-500 hover:text-black transition hidden sm:block"
+            >
+              ◀
+            </button>
 
-          <button
-            onClick={next}
-            className="absolute right-[-2.5rem] text-3xl text-gray-500 hover:text-black transition hidden sm:block"
-          >
-            ▶
-          </button>
+            <button
+              onClick={next}
+              className="absolute right-[-2.5rem] text-3xl text-gray-500 hover:text-black transition hidden sm:block"
+            >
+              ▶
+            </button>
           </>
 
-          {/* Tap zones for mobile (left/right) */}      
-          <div className="absolute top-0 left-0 h-full w-[15%] z-10 block sm:hidden" onClick={prev}></div>     
-          <div className="absolute top-0 right-0 h-full w-[15%] z-10 block sm:hidden" onClick={next}></div>        
-          <div><AdCard ad={currentAd} /></div>        
-        </div>      
+          {/* Tap zones for mobile (left/right) */}
+          <div
+            className="absolute top-0 left-0 h-full w-[15%] z-10 block sm:hidden"
+            onClick={prev}
+          ></div>
+          <div
+            className="absolute top-0 right-0 h-full w-[15%] z-10 block sm:hidden"
+            onClick={next}
+          ></div>
+          <div>
+            <AdCard ad={currentAd} />
+          </div>
+        </div>
 
         {/* Bottom bar with favourite and exclude buttons */}
         <div className="mt-4 flex justify-center space-x-10">
@@ -193,24 +208,23 @@ export default function CardViewer({ ads, updateFavourite, updateExclude, profil
               <FaTimes />
             </button>
           ) : (
-            <div className="text-sm text-gray-400 italic mt-2">Unfavourite to remove</div>
+            <div className="text-sm text-gray-400 italic mt-2">
+              Unfavourite to remove
+            </div>
           )}
         </div>
 
+        <button
+          onClick={() => setShowMOTModal(true)}
+          className="fixed bottom-2 right-5 z-50 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg"
+          title="MOT History"
+        >
+          <FaCar className="text-xl" />
+        </button>
 
-
-      <button
-        onClick={() => setShowMOTModal(true)}
-        className="fixed bottom-2 right-5 z-50 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg"
-        title="MOT History"
-      >
-        <FaCar className="text-xl" />
-      </button>      
-
-      {showMOTModal && (
-        <MOTHistoryModal onClose={() => setShowMOTModal(false)} />
-      )}
-
+        {showMOTModal && (
+          <MOTHistoryModal onClose={() => setShowMOTModal(false)} />
+        )}
       </div>
     )
   );

@@ -26,14 +26,14 @@ function getDaysAgo(postDateStr) {
 
 export default function AdCard({ ad }) {
   // ----------------------------
-  // MOT consts and functions 
+  // MOT consts and functions
   // ----------------------------
   const [showBindModal, setShowBindModal] = useState(false);
   const [showMOTModal, setShowMOTModal] = useState(false);
   const [boundReg, setBoundReg] = useState(null);
   const [regInput, setRegInput] = useState("");
 
-    // Fetch the bound registration number
+  // Fetch the bound registration number
   const fetchBoundReg = async () => {
     try {
       const res = await fetch(`/api/mot_history?ad_id=${ad.ad_id}`);
@@ -99,7 +99,7 @@ export default function AdCard({ ad }) {
   };
 
   // ----------------------------
-  // Thumbnail consts and functions 
+  // Thumbnail consts and functions
   // ----------------------------
   const [thumbnailMissing, setThumbnailMissing] = useState(false);
   const [currentThumb, setCurrentThumb] = useState("");
@@ -110,10 +110,10 @@ export default function AdCard({ ad }) {
     setThumbnailMissing(false); // Reset any missing-state
   }, [ad]);
 
-  // 
+  //
   const checkAndDownloadImages = async () => {
     setDownloading(true);
-    setModalVisible(true);  // shows the modal early
+    setModalVisible(true); // shows the modal early
     setGalleryReady(false); // reset
 
     try {
@@ -171,16 +171,13 @@ export default function AdCard({ ad }) {
     }
   };
 
-
-
-
-    // Clicking thumbnail loads all gallery images and opens GalleryViewer
+  // Clicking thumbnail loads all gallery images and opens GalleryViewer
   const handleThumbnailClick = async () => {
     await checkAndDownloadImages();
   };
 
   // ----------------------------
-  // Gallery download consts and functions 
+  // Gallery download consts and functions
   // ----------------------------
   const [modalVisible, setModalVisible] = useState(false);
   const [galleryReady, setGalleryReady] = useState(false);
@@ -193,7 +190,6 @@ export default function AdCard({ ad }) {
   if (!ad || !ad.ad_id) {
     return <div className="text-center p-4">Loading ad...</div>;
   }
-
 
   useEffect(() => {
     async function fetchImageCount() {
@@ -304,7 +300,6 @@ export default function AdCard({ ad }) {
                 {ad?.subtitle || ""}
               </span>
             </div>
-
           </div>
 
           {/* Price */}
@@ -314,10 +309,8 @@ export default function AdCard({ ad }) {
 
           {/* Distance & Location */}
           <div className="text-sm text-gray-600">
-            {ad?.distance
-              ? `${ad.distance} mi`
-              : "Distance unknown"}{" "}
-            · {ad?.location || "Unknown location"}
+            {ad?.distance ? `${ad.distance} mi` : "Distance unknown"} ·{" "}
+            {ad?.location || "Unknown location"}
           </div>
 
           {/* Post Date */}
