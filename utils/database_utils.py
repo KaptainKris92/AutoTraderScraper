@@ -333,7 +333,7 @@ def delete_ads_by_ad_id(ids_to_remove, table_name='ads'):
 def delete_ads_by_search_id(search_id, table_name='ads'):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        cursor.execut(
+        cursor.execute(
             f'DELETE FROM {table_name} WHERE search_id = ?',
             (search_id,)
         )
