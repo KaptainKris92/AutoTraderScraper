@@ -14,6 +14,7 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready }) {
 
   const [ocrResult, setOcrResult] = useState(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
 
   // Fetch gallery image URLs
   useEffect(() => {
@@ -44,12 +45,19 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready }) {
 
   // Poll download progress
   useEffect(() => {
+    if (!ready) return;
+
     const interval = setInterval(async () => {
-      const res = await fetch(`/api/download-progress/${adId}`);
-      const data = await res.json();
-      setProgressStatus(data.status);
-      if (data.current === data.total && data.total !== 0) {
-        clearInterval(interval);
+      try {
+        const res = await fetch(`/api/download-progress/${adId}`);
+        const data = await res.json();
+        setProgressStatus(data.status);
+
+        if (data.current === data.total && data.total !== 0) {
+          clearInterval(interval);
+        }
+      } catch (err) {
+        console.error("Progress polling failed", err);
       }
     }, 500);
 
@@ -59,7 +67,7 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready }) {
       clearTimeout(timeout);
       clearInterval(interval);
     };
-  }, [adId]);
+  }, [adId, ready]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -112,52 +120,54 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready }) {
     }
   };
 
-  const handleOCRCheck = async() => {
+  const handleOCRCheck = async () => {
+    setOcrLoading(true);
+    setShowConfirm(false);
+
     try {
       const imgNumber = String(currentIndex + 1).padStart(2, "0");
-      const res = await fetch(`/api/ocr-single/${adId}/${imgNumber}`)
+      const res = await fetch(`/api/ocr-single/${adId}/${imgNumber}`);
       const data = await res.json();
 
-      console.log(data)
-
       if (!data || !data.plates || data.plates.length === 0) {
-        alert("No registration plates found.")
+        alert("No registration plates found.");
       } else {
-        setOcrResult(data.plates[0]); // Picks first results 
+        setOcrResult(data.plates[0]); // Picks first results
         setShowConfirm(true);
-      }      
+      }
     } catch (err) {
-      console.error("OCR failed:", err)
+      console.error("OCR failed:", err);
       alert("OCR failed");
+    } finally {
+      setOcrLoading(false);
     }
   };
 
   const handleConfirmReg = async () => {
-  try {
-    // Fetch MOT history
-    const res = await fetch(`/api/mot_history/query?reg=${ocrResult}`);
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
+    try {
+      // Fetch MOT history
+      const res = await fetch(`/api/mot_history/query?reg=${ocrResult}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
 
-    // Save MOT history
-    await fetch("/api/mot_history", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        registration: ocrResult,
-        data,
-        ad_id: adId,
-      }),
-    });
+      // Save MOT history
+      await fetch("/api/mot_history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          registration: ocrResult,
+          data,
+          ad_id: adId,
+        }),
+      });
 
-    alert("✅ MOT history saved and linked.");
-    setShowConfirm(false);
-  } catch (err) {
-    console.error("Failed to confirm reg:", err);
-    alert("Failed to fetch and bind MOT data.");
-  }
-};
-
+      alert("✅ MOT history saved and linked.");
+      setShowConfirm(false);
+    } catch (err) {
+      console.error("Failed to confirm reg:", err);
+      alert("Failed to fetch and bind MOT data.");
+    }
+  };
 
   {
     progressStatus && (
@@ -167,30 +177,14 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready }) {
     );
   }
 
-  {
-    showConfirm && (
-      <div className="absolute bottom-2 left-2 bg-white/90 p-3 rounded shadow-lg text-sm space-y-2">
-        <p>
-          Found reg: <strong>{ocrResult}</strong>
-        </p>
-        <button
-          className="bg-green-600 text-white px-3 py-1 rounded"
-          onClick={handleConfirmReg}
-        >
-          Confirm and fetch MOT history
-        </button>
-        <button
-          className="bg-gray-300 text-black px-3 py-1 rounded ml-2"
-          onClick={() => setShowConfirm(false)}
-        >
-          Cancel
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex flex-col items-center justify-center modal-open">
+      {ocrLoading && (
+        <div className="absolute top-4 left-4 bg-white/90 px-4 py-2 rounded shadow-lg animate-pulse z-50">
+          Searching for registration plate...
+        </div>
+      )}
+
       {loading ? (
         <div className="text-white text-center space-y-2">
           <div className="text-lg animate-pulse">Loading images...</div>
@@ -230,9 +224,9 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready }) {
             <button
               onClick={handleOCRCheck}
               className="absolute bottom-2 right-2 bg-yellow-500 text-white px-3 py-1 rounded text-sm shadow"
-              >
-                Find reg in image
-              </button>
+            >
+              Find reg in image
+            </button>
           </div>
 
           {/* Left and right buttons + image index */}
@@ -265,6 +259,29 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready }) {
             </button>
           </div>
         </>
+      )}
+
+      {/* Confirmation box */}
+      {showConfirm && (
+        <div className="absolute bottom-2 left-2 bg-white/90 p-3 rounded shadow-lg text-sm space-y-2 z-50">
+          <p>
+            Found reg: <strong>{ocrResult}</strong>
+          </p>
+          <div className="flex gap-2">
+            <button
+              className="bg-green-600 text-white px-3 py-1 rounded"
+              onClick={handleConfirmReg}
+            >
+              Confirm & Fetch MOT
+            </button>
+            <button
+              className="bg-gray-300 text-black px-3 py-1 rounded"
+              onClick={() => setShowConfirm(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
