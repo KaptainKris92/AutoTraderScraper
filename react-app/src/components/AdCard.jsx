@@ -24,7 +24,7 @@ function getDaysAgo(postDateStr) {
   return "Over a year ago";
 }
 
-export default function AdCard({ ad }) {
+export default function AdCard({ ad, refreshKey, onOpenGallery }) {
   // ----------------------------
   // MOT consts and functions
   // ----------------------------
@@ -55,7 +55,7 @@ export default function AdCard({ ad }) {
   // Get correct bound reg for each ad
   useEffect(() => {
     fetchBoundReg();
-  }, [ad.ad_id]);
+  }, [ad.ad_id, refreshKey]);
 
   // Unbinding reg numbers
   const handleUnbind = async () => {
@@ -108,79 +108,16 @@ export default function AdCard({ ad }) {
   useEffect(() => {
     setCurrentThumb(`/api/thumbnail/${ad.ad_id}`);
     setThumbnailMissing(false); // Reset any missing-state
-  }, [ad]);
-
-  //
-  const checkAndDownloadImages = async () => {
-    setDownloading(true);
-    setModalVisible(true); // shows the modal early
-    setGalleryReady(false); // reset
-
-    try {
-      // 🔍 Check if images already exist
-      const res = await fetch(`/api/image-count/${ad.ad_id}`);
-      const { count } = await res.json();
-
-      if (count > 0) {
-        console.log("✅ Images already exist — skipping download");
-        setGalleryReady(true); // ✅ must trigger ready
-        return;
-      }
-
-      console.log("🔄 Downloading images...");
-      const downloadRes = await fetch("/api/download-pictures", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ad_id: ad.ad_id,
-          ad_url: ad.ad_url,
-        }),
-      });
-
-      if (!downloadRes.ok) {
-        throw new Error("❌ Image download failed.");
-      }
-
-      // ⏳ Poll until images appear
-      let tries = 0;
-      let finalCount = 0;
-      while (tries < 20) {
-        const pollRes = await fetch(`/api/image-count/${ad.ad_id}`);
-        const { count: currentCount } = await pollRes.json();
-        if (currentCount > 0) {
-          finalCount = currentCount;
-          break;
-        }
-        await new Promise((r) => setTimeout(r, 500));
-        tries++;
-      }
-
-      if (finalCount === 0) {
-        alert("No images found.");
-        setModalVisible(false); // ❌ prevent stuck spinner
-        return;
-      }
-
-      setGalleryReady(true); // ✅ tell GalleryViewer to load now
-    } catch (err) {
-      console.error("❌ Error preparing gallery:", err);
-      alert("Something went wrong.");
-      setModalVisible(false);
-    } finally {
-      setDownloading(false);
-    }
-  };
+  }, [ad]); 
 
   // Clicking thumbnail loads all gallery images and opens GalleryViewer
   const handleThumbnailClick = async () => {
-    await checkAndDownloadImages();
+    onOpenGallery?.(); // Opens GalleryViewer
   };
 
   // ----------------------------
   // Gallery download consts and functions
   // ----------------------------
-  const [modalVisible, setModalVisible] = useState(false);
-  const [galleryReady, setGalleryReady] = useState(false);
   const [imageCount, setImageCount] = useState(0);
   const [downloading, setDownloading] = useState(false);
 
@@ -382,16 +319,7 @@ export default function AdCard({ ad }) {
             initialReg={boundReg}
           />
         )}
-
-        {/* Gallery viewer */}
-        {modalVisible && (
-          <GalleryViewer
-            adId={ad.ad_id}
-            onClose={() => setModalVisible(false)}
-            onImageChange={(img) => setCurrentThumb(img)}
-            ready={galleryReady}
-          />
-        )}
+        
       </div>
     </>
   );

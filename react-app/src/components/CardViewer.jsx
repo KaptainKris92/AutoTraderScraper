@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import AdCard from "./AdCard";
+import GalleryViewer from "./GalleryViewer";
 import { FaHeart, FaTimes, FaCar } from "react-icons/fa";
 import { useDrag } from "@use-gesture/react"; // For mobile swiping
 import MOTHistoryModal from "./MOTHistoryModal";
@@ -13,6 +14,10 @@ export default function CardViewer({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showMOTModal, setShowMOTModal] = useState(false);
   const [showFavouritesOnly, setShowFavouritesOnly] = useState(false);
+  
+  const [refreshKey, setRefreshKey] = useState(Date.now());
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryReady, setGalleryReady] = useState(false);
 
   const filteredAds = showFavouritesOnly
     ? ads.filter((ad) => ad.favourited === 1)
@@ -27,6 +32,55 @@ export default function CardViewer({
   const prev = () => {
     if (currentIndex > 0) setCurrentIndex((i) => i - 1);
   };
+
+  const handleOpenGallery = async() => {
+    setGalleryOpen(true);
+    setGalleryReady(false);
+
+    try {
+      // Check image count
+      const res = await fetch(`/api/image-count/${currentAd.ad_id}`);
+      const { count } = await res.json();
+
+      if (count > 0) {
+        setGalleryReady(true);
+        return;
+      }
+
+      // Trigger download
+      const downloadRes = await fetch("/api/download-pictures", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ad_id: currentAd.ad_id,
+          ad_url: currentAd.ad_url,
+        }),
+      });
+
+      if (!downloadRes.ok) {
+        throw new Error("Image download failed");
+      }
+
+      // Poll for readiness
+      let tries = 0;
+      while (tries < 20) {
+        const pollRes = await fetch(`/api/image-count/${currentAd.ad_id}`);
+        const { count: currentCount } = await pollRes.json();
+        if (currentCount > 0) {
+          setGalleryReady(true);
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 500));
+        tries++;
+      }
+      alert("No images found.");
+      setGalleryOpen(false);
+    } catch (err) {
+      console.error("Failed to open gallery:", err);
+      alert("Failed to load gallery images.");
+      setGalleryOpen(false);
+    }
+  }
 
   useEffect(() => {
     console.log(profileName);
@@ -169,7 +223,11 @@ export default function CardViewer({
             onClick={next}
           ></div>
           <div>
-            <AdCard ad={currentAd} />
+            <AdCard
+              ad={currentAd}
+              refreshKey={refreshKey}
+              onOpenGallery={handleOpenGallery}
+            />
           </div>
         </div>
 
@@ -213,7 +271,7 @@ export default function CardViewer({
             </div>
           )}
         </div>
-
+        {!galleryOpen && (
         <button
           onClick={() => setShowMOTModal(true)}
           className="fixed bottom-2 right-5 z-50 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg"
@@ -221,9 +279,23 @@ export default function CardViewer({
         >
           <FaCar className="text-xl" />
         </button>
+        )}
+
 
         {showMOTModal && (
           <MOTHistoryModal onClose={() => setShowMOTModal(false)} />
+        )}
+
+        {galleryOpen && currentAd && (
+          <GalleryViewer
+            adId={currentAd.ad_id}
+            onClose={() => setGalleryOpen(false)}
+            onImageChange={(img) => {
+              setGalleryOpen(false); // Close gallery on image change
+            }}
+            ready={galleryReady}
+            onRegConfirmed={() => setRefreshKey(Date.now())}
+          />
         )}
       </div>
     )

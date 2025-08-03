@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useDrag } from "@use-gesture/react";
 import { useModalHistory } from "../hooks/useModalHistory";
 
-export default function GalleryViewer({ adId, onClose, onImageChange, ready }) {
+export default function GalleryViewer({ adId, onClose, onImageChange, ready, onRegConfirmed }) {
   useModalHistory(onClose);
 
   const [images, setImages] = useState([]);
@@ -15,6 +15,8 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready }) {
   const [ocrResult, setOcrResult] = useState(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
+
+  const [motLoading, setMotLoading] = useState(false);
 
   // Fetch gallery image URLs
   useEffect(() => {
@@ -47,25 +49,30 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready }) {
   useEffect(() => {
     if (!ready) return;
 
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/download-progress/${adId}`);
-        const data = await res.json();
-        setProgressStatus(data.status);
+    let intervalId;
 
-        if (data.current === data.total && data.total !== 0) {
-          clearInterval(interval);
+    const startPolling = () => {
+      intervalId = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/download-progress/${adId}`);
+          const data = await res.json();
+          setProgressStatus(data.status);
+
+          if (data.current === data.total && data.total !== 0) {
+            clearInterval(intervalId);
+          }
+        } catch (err) {
+          console.error("Progress polling failed", err);
+          clearInterval(intervalId);
         }
-      } catch (err) {
-        console.error("Progress polling failed", err);
-      }
-    }, 500);
+      }, 1000);
+    };
 
-    const timeout = setTimeout(() => interval, 1000); // Delays start a bit
+    const timeoutId = setTimeout(startPolling, 1000);
 
     return () => {
-      clearTimeout(timeout);
-      clearInterval(interval);
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
     };
   }, [adId, ready]);
 
@@ -129,6 +136,8 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready }) {
       const res = await fetch(`/api/ocr-single/${adId}/${imgNumber}`);
       const data = await res.json();
 
+      console.log(adId, imgNumber, data)
+
       if (!data || !data.plates || data.plates.length === 0) {
         alert("No registration plates found.");
       } else {
@@ -144,6 +153,9 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready }) {
   };
 
   const handleConfirmReg = async () => {
+    setModalLoading(true);
+    setShowConfirm(false);
+
     try {
       // Fetch MOT history
       const res = await fetch(`/api/mot_history/query?reg=${ocrResult}`);
@@ -155,18 +167,23 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          registration: ocrResult,
+          registration: ocrResult.replace(/\s+/g, "").toUpperCase(),
           data,
           ad_id: adId,
         }),
       });
 
+      // Notify parent to refresh
+      if (onRegConfirmed) onRegConfirmed();
+
       alert("✅ MOT history saved and linked.");
+      onImageChange(images[currentIndex]);
       setShowConfirm(false);
+      onClose();      
     } catch (err) {
       console.error("Failed to confirm reg:", err);
       alert("Failed to fetch and bind MOT data.");
-    }
+    } finally {setMotLoading(true)}        
   };
 
   {
@@ -185,6 +202,12 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready }) {
         </div>
       )}
 
+      {motLoading && (
+        <div className="absolute top-16 left-4 bg-white/90 px-4 py-2 rounded shadow-lg animate-pulse z-50">
+          Fetching MOT history...
+        </div>
+      )}
+
       {loading ? (
         <div className="text-white text-center space-y-2">
           <div className="text-lg animate-pulse">Loading images...</div>
@@ -200,7 +223,7 @@ export default function GalleryViewer({ adId, onClose, onImageChange, ready }) {
           <button
             onClick={() => {
               onImageChange(images[currentIndex]);
-              onClose();
+              onClose();              
             }}
             className="absolute top-4 right-4 text-white text-2xl"
           >

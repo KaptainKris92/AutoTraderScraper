@@ -299,6 +299,7 @@ export default function MOTHistoryModal({ onClose, adId, initialReg }) {
                   if (!Array.isArray(data.zone))
                     throw new Error("CAZ zones not an array");
                   setCazResults(data.zone);
+                  setIsCAZOpen(true);
                 } catch (err) {
                   console.error("CAZ check failed:", err);
                   alert("Failed to check Clean Air Zones for this vehicle.");
