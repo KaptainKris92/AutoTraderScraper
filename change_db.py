@@ -22,7 +22,7 @@ def clear_today():
     
     query = f'''
     DELETE FROM ads
-    WHERE [Scraped at] LIKE "{today_str}%"
+    WHERE scrape_date LIKE "{today_str}%"
     '''
     
     execute_query(query)
@@ -36,7 +36,7 @@ def clear_exclude(timeframe):
     if timeframe == 'all':
         query = '''
         UPDATE ads
-        SET Excluded = 0
+        SET excluded = 0
         '''
         execute_query(query)
         
@@ -44,8 +44,8 @@ def clear_exclude(timeframe):
         today_str = datetime.now().strftime('%Y-%m-%d')
         query = f'''
         UPDATE ads
-        SET Excluded = 0
-        WHERE [Scraped at] LIKE "{today_str}%"
+        SET excluded = 0
+        WHERE scrape_date LIKE "{today_str}%"
         '''
         execute_query(query)
     else:
@@ -56,15 +56,15 @@ def clear_favourite(timeframe):
     if timeframe == 'all':
         query = '''
         UPDATE ads
-        SET Favourited = 0
+        SET favourited = 0
         '''
         execute_query(query)
     elif timeframe == 'today':
         today_str = datetime.now().strftime('%Y-%m-%d')
         query = f'''
         UPDATE ads
-        SET Excluded = 0
-        WHERE [Scraped at] LIKE "{today_str}%"
+        SET excluded = 0
+        WHERE scrape_date LIKE "{today_str}%"
         '''
         execute_query(query)
     else:

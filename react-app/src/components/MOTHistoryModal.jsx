@@ -274,7 +274,9 @@ function parseRegYear(reg) {
 
             {/* CAZ Buttons */}
                 <div className="mt-4 flex flex-wrap gap-3 items-center mb-5">
-                <button
+                
+                
+                {!cazLoading && cazResults.length === 0 && (<button
                     onClick={async () => {
                         setCazLoading(true);
                         try {
@@ -305,6 +307,7 @@ function parseRegYear(reg) {
                 >
                     Check CAZ Costs
                 </button>
+            )}
                 
                 {!cazLoading && Array.isArray(cazResults) && cazResults.length > 0 && (
                 <button

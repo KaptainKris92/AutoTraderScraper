@@ -16,15 +16,22 @@ export default function Home() {
     const [sortDirection, setSortDirection] = useState(defaultDirection);
 
     useEffect(() => {
-        fetch("/api/ads")
-        .then((res) => res.json())
-        .then((data) => {
-            const adsArray = Array.isArray(data) ? data : data.data;
-            console.log("Fetched ads array:", adsArray);
-            const sorted = sortAds(adsArray, sortBy, sortDirection);
-            setAds(sorted);
-        })
-        .catch((err) => console.error("Failed to load ads:", err));
+
+        const activeSearchId = localStorage.getItem("activeSearchId");
+        const activeSearchName = localStorage.getItem("activeSearchName");
+        const apiUrl = activeSearchId
+            ? `/api/ads?search_id=${activeSearchId}`
+            : "/api/ads";            
+
+        fetch(apiUrl)
+            .then((res) => res.json())
+            .then((data) => {
+                const adsArray = Array.isArray(data) ? data : data.data;
+                console.log("Fetched ads array:", adsArray);
+                const sorted = sortAds(adsArray, sortBy, sortDirection);
+                setAds(sorted);
+            })
+            .catch((err) => console.error("Failed to load ads:", err));
     }, [sortBy, sortDirection]);
 
     // Prevent scrolling
@@ -44,7 +51,7 @@ export default function Home() {
         // Update local state for immediate feedback
         setAds((prevAds) =>
             prevAds.map((ad) =>
-            ad["Ad ID"] === adId ? { ...ad, Favourited: newValue } : ad 
+            ad.ad_id === adId ? { ...ad, favourited: newValue } : ad 
             )
         );      
         });
@@ -58,13 +65,13 @@ export default function Home() {
         }).then(() => {
             // Immediately remove excluded ad from state
             setTimeout(() => {
-                setAds((prevAds) => prevAds.filter((ad) => ad["Ad ID"] !== adId));
+                setAds((prevAds) => prevAds.filter((ad) => ad.ad_id !== adId));
             }, 200); // 200ms delay before removing the ad
             
         });
     };
 
-    const filteredAds = ads.filter(ad => ad.Excluded !== 1); // Don't show excluded ads
+    const filteredAds = ads.filter(ad => ad.excluded !== 1); // Don't show excluded ads
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-start py-2 sm:pt-10 space-y-6">
@@ -81,6 +88,8 @@ export default function Home() {
             ads={filteredAds}
             updateFavourite={updateFavourite}
             updateExclude={updateExclude}
+            activeSearchId={localStorage.getItem("activeSearchId")}
+            profileName={localStorage.getItem("activeSearchName")}
             />
         ) : (
             <p>Loading ads...</p>

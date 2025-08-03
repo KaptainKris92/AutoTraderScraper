@@ -18,6 +18,7 @@ export default function Navbar() {
         <NavLink to={`/${params}`} className={getLinkClass}>Home</NavLink>
         <NavLink to={`/favourites${params}`} className={getLinkClass}>Favourites</NavLink>
         <NavLink to={`/excluded${params}`} className={getLinkClass}>Excluded</NavLink>
+        <NavLink to={`/settings${params}`} className={getLinkClass}>Settings</NavLink>
         </nav>
     );
 }

@@ -1,14 +1,14 @@
 export const sortKeyMap = {
-    "Title": (ad) => ad.Title || "",
-    "Price": (ad) => parseInt(ad.Price?.replace(/[^0-9]/g, "")) || 0,
-    "Mileage": (ad) => ad.Mileage || 0,
+    "Title": (ad) => ad.title || "",
+    "Price": (ad) => parseInt(ad.price?.replace(/[^0-9]/g, "")) || 0,
+    "Mileage": (ad) => ad.mileage || 0,
     "Registered Year": (ad) => {
-        const yearMatch = ad["Registered Year"]?.match(/\d{4}/);
+        const yearMatch = ad.reg_year?.match(/\d{4}/);
         return yearMatch ? parseInt(yearMatch[0]) : 0;
     },
-    "Distance": (ad) => ad["Distance (miles)"] || 0,
-    "Ad post date": (ad) => new Date(ad["Ad post date"]),
-    "Scraped at": (ad) => new Date(ad["Scraped at"]),
+    "Distance": (ad) => ad.distance || 0,
+    "Ad post date": (ad) => new Date(ad.post_date),
+    "Scraped at": (ad) => new Date(ad.scrape_date),
 };
 
 export const sortOptions = Object.keys(sortKeyMap);

@@ -15,8 +15,8 @@ export default function Excluded() {
     useEffect(() => {
         fetch("/api/ads")
         .then((res) => res.json())
-        .then((data) => {
-            const onlyExcluded = data.filter((ad) => ad.Excluded === 1);
+        .then((res) => {
+            const onlyExcluded = res.data.filter((ad) => ad.excluded === 1);
             const sorted = sortAds(onlyExcluded, sortBy, sortDirection);
             setAds(sorted);
         })
@@ -29,7 +29,7 @@ export default function Excluded() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ad_id: adId, operation: "exclude", value: 0 }),
         }).then(() => {
-        setAds((prev) => prev.filter((ad) => ad["Ad ID"] !== adId));
+        setAds((prev) => prev.filter((ad) => ad.ad_id !== adId));
         });
     };
 
@@ -51,22 +51,22 @@ export default function Excluded() {
             <ul className="space-y-4 max-w-4xl mx-auto">
             {ads.map((ad) => (
                 <li
-                key={ad["Ad ID"]}
+                key={ad.ad_id}
                 className="bg-white p-4 rounded shadow flex flex-col sm:flex-row sm:items-center justify-between"
                 >
                 <div>
-                    <h3 className="font-bold text-lg">{ad.Title}</h3>
-                    <p className="text-sm text-gray-600">{ad.Subtitle}</p>
+                    <h3 className="font-bold text-lg">{ad.title}</h3>
+                    <p className="text-sm text-gray-600">{ad.subtitle}</p>
                     <p className="text-sm mt-1">
-                    <strong>Price:</strong> {ad.Price} | <strong>Mileage:</strong> {ad.Mileage} |{" "}
-                    <strong>Year:</strong> {ad["Registered Year"]} | <strong>Distance:</strong>{" "}
-                    {ad["Distance (miles)"]} mi | <strong>Location:</strong> {ad.Location} |{" "}
-                    <strong>Posted:</strong> {ad["Ad post date"]}
+                    <strong>Price:</strong> {ad.price} | <strong>Mileage:</strong> {ad.mileage} |{" "}
+                    <strong>Year:</strong> {ad.reg_year} | <strong>Distance:</strong>{" "}
+                    {ad.distance} mi | <strong>Location:</strong> {ad.location} |{" "}
+                    <strong>Posted:</strong> {ad.post_date}
                     </p>
                 </div>
                 <div className="mt-3 sm:mt-0 sm:ml-4 space-y-2">
                     <button
-                    onClick={() => handleUnexclude(ad["Ad ID"])}
+                    onClick={() => handleUnexclude(ad.ad_id)}
                     className="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
                     >
                     Unexclude

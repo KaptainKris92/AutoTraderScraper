@@ -4,13 +4,13 @@ import { FaHeart, FaTimes, FaCar } from "react-icons/fa";
 import { useDrag } from '@use-gesture/react'; // For mobile swiping
 import MOTHistoryModal from "./MOTHistoryModal";
 
-export default function CardViewer({ ads, updateFavourite, updateExclude }) {
+export default function CardViewer({ ads, updateFavourite, updateExclude, profileName }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showMOTModal, setShowMOTModal] = useState(false);
   const [showFavouritesOnly, setShowFavouritesOnly] = useState(false);
 
   const filteredAds = showFavouritesOnly
-    ? ads.filter(ad => ad.Favourited === 1)
+    ? ads.filter(ad => ad.favourited === 1)
     : ads;
   
   const currentAd = filteredAds.length > 0 ? filteredAds[currentIndex] : null;
@@ -24,6 +24,7 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
   };
 
   useEffect(() => {
+    console.log(profileName)
     // Reset index if filter changes and currentIndex becomes invalid
     if (currentIndex >= filteredAds.length) {
       setCurrentIndex(0);
@@ -45,12 +46,18 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
   // Keyboard triggers
   useEffect(() => {
     const handleKeyDown = (e) => {
+      
+      // Ignore key events if focused on an input or textarea
+      const active = document.activeElement
+      const isTyping = active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")
+      if (isTyping) return;
+
       // Only listen if no modals are open
       const modalOpen = document.querySelector(".modal-open");
       if (modalOpen) return;
 
-      if (!currentAd || !currentAd["Ad ID"]) return;
-      const adId = currentAd["Ad ID"];      
+      if (!currentAd || !currentAd.ad_id) return;
+      const adId = currentAd.ad_id;      
 
       switch (e.key) {
         case "ArrowRight":
@@ -61,7 +68,7 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
           break;
         case "f":
         case "F":
-          updateFavourite(adId, currentAd.Favourited === 1 ? 0 : 1);
+          updateFavourite(adId, currentAd.favourited === 1 ? 0 : 1);
           break;
         case "e":
         case "E":
@@ -98,16 +105,28 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
     currentAd && (
       <div className="relative min-h-screen flex flex-col items-center justify-start pt-2 pb-14">          
 
-        {/* Filter favourites toggle */}
-        <div className="flex items-center mb-2 gap-2">
-          <input
-            type="checkbox"
-            id="favOnlyToggle"
-            checked={showFavouritesOnly}
-            onChange={() => setShowFavouritesOnly(val => !val)}
-            className="w-4 h-4"
-          />
-          <label htmlFor="favOnlyToggle" className="text-sm text-gray-700">Favourites only</label>
+        {/* Filter favourites toggle, profile name, and ad index*/}
+        <div className = "flex items-center justify-between w-full max-w-2xl mb-2 px-4 text-sm text-gray-600">
+          {/* Favourites checkbox */}
+          <div className="flex items-center mb-2 gap-2">
+            <input
+              type="checkbox"
+              id="favOnlyToggle"
+              checked={showFavouritesOnly}
+              onChange={() => setShowFavouritesOnly(val => !val)}
+              className="w-4 h-4"
+            />
+            <label htmlFor="favOnlyToggle" className="text-sm text-gray-700">Favourites only</label>
+          </div>
+
+          {/* Profile name and index */}
+          <div className="text-right text-xs sm:text-sm text-gray-600 whitespace-nowrap">
+            {profileName && <div className="font-semibold">{profileName}</div>}
+            {filteredAds.length > 0 && (
+              <div>{currentIndex + 1} / {filteredAds.length}</div>
+            )}
+          </div>
+          
         </div>
         
         {/* Card & Arrows */}
@@ -144,14 +163,14 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
           {/* Toggle favourite */}
           <button
             onClick={() => {
-              const adId = currentAd["Ad ID"];
-              const newFaveStatus = currentAd.Favourited === 1 ? 0 : 1;
+              const adId = currentAd.ad_id;
+              const newFaveStatus = currentAd.favourited === 1 ? 0 : 1;
               updateFavourite(adId, newFaveStatus);
 
               // Auto skip to next if in filtered mode and unfavourited
               if (showFavouritesOnly && newFaveStatus === 0) {
                 setTimeout(() => {
-                  const remaining = ads.filter((ad) => ad.Favourited === 1);
+                  const remaining = ads.filter((ad) => ad.favourited === 1);
                   if (remaining.length > 0) {
                     setCurrentIndex((i) => Math.min(i, remaining.length - 1));
                   }
@@ -159,15 +178,15 @@ export default function CardViewer({ ads, updateFavourite, updateExclude }) {
               }
             }}
             className="text-5xl md:text-6xl text-pink-500 hover:scale-110 transition"
-            title={currentAd.Favourited === 1 ? "Unfavourite" : "Favourite"}
+            title={currentAd.favourited === 1 ? "Unfavourite" : "Favourite"}
           >
-            {currentAd.Favourited === 1 ? <FaTimes /> : <FaHeart />}
+            {currentAd.favourited === 1 ? <FaTimes /> : <FaHeart />}
           </button>
 
           {/* Exclude or disable */}
           {!showFavouritesOnly ? (
             <button
-              onClick={() => updateExclude(currentAd["Ad ID"])}
+              onClick={() => updateExclude(currentAd.ad_id)}
               className="text-5xl md:text-6xl text-red-600 hover:scale-110 transition"
               title="Exclude"
             >
