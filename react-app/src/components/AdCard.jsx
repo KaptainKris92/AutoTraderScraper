@@ -115,7 +115,7 @@ export default function AdCard({ ad, refreshKey, onOpenGallery }) {
 
   // Show thumbnail for each ad
   useEffect(() => {
-    setCurrentThumb(`/api/thumbnail/${ad.ad_id}`);
+    setCurrentThumb(ad.thumbnail || `/api/thumbnail/${ad.ad_id}`);
     setThumbnailMissing(false); // Reset any missing-state
   }, [ad]);
 
