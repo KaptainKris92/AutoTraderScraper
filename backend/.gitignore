@@ -1,0 +1,10 @@
+.venv
+.env
+images
+screenshots
+data
+thumbnails
+data
+__pycache__/
+*.py[cod]
+debug
