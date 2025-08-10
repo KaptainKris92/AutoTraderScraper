@@ -1,7 +1,7 @@
 [phases.setup]
-# Nix package names (runtime libs) — provides libGL.so.1 etc.
 nixLibs = [
-  "mesa",          # libGL.so.1
+  "gcc",           
+  "mesa",
   "glib",
   "xorg.libX11",
   "xorg.libXext",
