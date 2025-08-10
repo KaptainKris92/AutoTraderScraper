@@ -2,7 +2,6 @@ import os
 import re
 import string
 import cv2
-import numpy as np
 
 # --- env-aware paths (as we set earlier) ---
 DATA_DIR = os.getenv("DATA_DIR", "./data")

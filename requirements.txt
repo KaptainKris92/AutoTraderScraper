@@ -1,2 +1,2 @@
-# Comment added to trigger Railway reinstall of dependencies
+# Comment added to trigger Railway reinstall of dependencies.
 -r backend/requirements.txt
