@@ -8,7 +8,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium import webdriver
-import pandas as pd
 import os
 import time
 import re
@@ -106,6 +105,7 @@ def reject_cookies(driver, timeout=15):
 
 
 def scrape_autotrader(url, search_id=None, save_to_excel=False, max_scrolls=DEFAULT_MAX_SCROLLS, status_callback=None, abort_event=None):
+    import pandas as pd
 
     if abort_event and abort_event.is_set():
         if status_callback:

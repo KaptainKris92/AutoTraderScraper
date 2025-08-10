@@ -4,18 +4,16 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-# SQLite location
-DATA_DIR = Path('data')
-DB_PATH = DATA_DIR / 'autotrader_listings.db'
-
-# Create dir if doesn't exist
+DATA_DIR = Path(os.getenv("DATA_DIR", "./data"))
+DB_PATH = Path(os.getenv("SQLITE_PATH", DATA_DIR / "autotrader_listings.db"))
 os.makedirs(DATA_DIR, exist_ok=True)
-
 
 # %% Create tables
 # ----------------
 
 # Scraped ad information
+
+
 def create_ads_table(table_name='ads'):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()

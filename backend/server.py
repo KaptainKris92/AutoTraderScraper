@@ -100,7 +100,6 @@ def health():
 
 @app.route("/api/diag/python", methods=["GET"])
 def diag_python():
-    # Don’t import pandas here!
     import sys
     import os
     info = {
