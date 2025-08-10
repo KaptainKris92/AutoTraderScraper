@@ -1,30 +1,39 @@
-import easyocr
+import os
 import re
 import string
-import os
 import cv2
 import numpy as np
-from ultralytics import YOLO  # For detecting reg plate in image
 
-# Storage roots (env-aware; local -> ./data, Railway -> /data)
+# --- env-aware paths (as we set earlier) ---
 DATA_DIR = os.getenv("DATA_DIR", "./data")
 IMAGES_DIR = os.getenv("UPLOAD_DIR", os.path.join(DATA_DIR, "images"))
 DEBUG_DIR = os.getenv("DEBUG_DIR", os.path.join(DATA_DIR, "debug"))
-
-# Ensure folders exist in dev (Railway volume exists at runtime)
 os.makedirs(IMAGES_DIR, exist_ok=True)
 os.makedirs(DEBUG_DIR, exist_ok=True)
 
-# Initialize the OCR reader
-reader = easyocr.Reader(['en'], gpu=False)
+# --- Lazy singletons for heavy libs ---
+_reader = None
+_yolo = None
 
-# Load pretrained license plate detector
-_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-_MODEL_PATH = os.path.join(_THIS_DIR, "..", "models",
-                           "license_plate_detector.pt")
-_MODEL_PATH = os.path.normpath(_MODEL_PATH)
 
-reg_plate_model = YOLO(_MODEL_PATH).to("cpu")
+def get_reader():
+    global _reader
+    if _reader is None:
+        import easyocr  # import here to avoid crashing app at boot
+        _reader = easyocr.Reader(['en'], gpu=False)
+    return _reader
+
+
+def get_yolo():
+    global _yolo
+    if _yolo is None:
+        from ultralytics import YOLO
+        _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+        _MODEL_PATH = os.path.normpath(os.path.join(
+            _THIS_DIR, "..", "models", "license_plate_detector.pt"))
+        _yolo = YOLO(_MODEL_PATH).to("cpu")
+    return _yolo
+
 
 # Mapping dictionaries for character conversion
 dict_char_to_int = {'O': '0',
@@ -48,7 +57,7 @@ def crop_likely_plate_region(img):
 
 
 def detect_plate_and_crop(img, debug_img=True):
-    results = reg_plate_model.predict(source=img, conf=0.5)
+    results = get_yolo().predict(source=img, conf=0.5)
     if len(results[0].boxes) == 0:
         return None
 
@@ -144,7 +153,7 @@ def format_license(text):
 
 def read_license_plate(license_plate_crop):
 
-    detections = reader.readtext(license_plate_crop)
+    detections = get_reader().readtext(license_plate_crop)
 
     for detection in detections:
         bbox, text, score = detection
