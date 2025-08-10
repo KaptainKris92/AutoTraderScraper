@@ -1,6 +1,7 @@
-[phases.setup]
-nixLibs = [
-  "gcc",           
+[setup]
+nixPkgs = [
+  "gcc",           # provides libstdc++.so.6
+  "libstdcxx5",    # older libstdc++ just in case
   "mesa",
   "glib",
   "xorg.libX11",
