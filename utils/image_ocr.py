@@ -6,11 +6,25 @@ import cv2
 import numpy as np
 from ultralytics import YOLO  # For detecting reg plate in image
 
+# Storage roots (env-aware; local -> ./data, Railway -> /data)
+DATA_DIR = os.getenv("DATA_DIR", "./data")
+IMAGES_DIR = os.getenv("UPLOAD_DIR", os.path.join(DATA_DIR, "images"))
+DEBUG_DIR = os.getenv("DEBUG_DIR", os.path.join(DATA_DIR, "debug"))
+
+# Ensure folders exist in dev (Railway volume exists at runtime)
+os.makedirs(IMAGES_DIR, exist_ok=True)
+os.makedirs(DEBUG_DIR, exist_ok=True)
+
 # Initialize the OCR reader
 reader = easyocr.Reader(['en'], gpu=False)
 
 # Load pretrained license plate detector
-reg_plate_model = YOLO('models/license_plate_detector.pt').to("cpu")
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+_MODEL_PATH = os.path.join(_THIS_DIR, "..", "models",
+                           "license_plate_detector.pt")
+_MODEL_PATH = os.path.normpath(_MODEL_PATH)
+
+reg_plate_model = YOLO(_MODEL_PATH).to("cpu")
 
 # Mapping dictionaries for character conversion
 dict_char_to_int = {'O': '0',
@@ -46,7 +60,8 @@ def detect_plate_and_crop(img, debug_img=True):
 
 
 def preprocess_image(path, debug_path=None):
-    img = cv2.imread(path)  # <-- this is BGR
+    path = str(path)  # Make sure path is a string for OpenCV
+    img = cv2.imread(path)  # BGR
 
     # ⚠️ do NOT preprocess before YOLO
     cropped, plate_bbox = detect_plate_and_crop(img)
@@ -56,7 +71,7 @@ def preprocess_image(path, debug_path=None):
         cropped = crop_likely_plate_region(img)
         plate_bbox = None
 
-    # Only now: grayscale and denoise *after* cropping
+    # Grayscale and denoise *after* cropping
     gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
     filtered = cv2.bilateralFilter(gray, 11, 17, 17)
 
@@ -147,8 +162,10 @@ def read_license_plate(license_plate_crop):
 
 
 def ocr_reg_plate_single(ad_id, image_index):
-    img_path = f'images/{ad_id}/{str(image_index).zfill(2)}.jpg'
-    debug_path = f'debug/{ad_id}_{str(image_index).zfill(2)}_preprocessed.jpg'
+    img_path = os.path.join(
+        IMAGES_DIR, ad_id, f"{str(image_index).zfill(2)}.jpg")
+    debug_path = os.path.join(
+        DEBUG_DIR, f"{ad_id}_{str(image_index).zfill(2)}_preprocessed.jpg")
     try:
         preprocessed_img = preprocess_image(img_path, debug_path)
 

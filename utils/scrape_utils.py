@@ -13,7 +13,6 @@ import os
 import time
 import re
 import requests
-import hashlib
 from datetime import datetime
 from pathlib import Path
 
@@ -29,7 +28,16 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 AUTOTRADER_URL = 'https://www.autotrader.co.uk/car-search?maximum-mileage=125000&postcode=CF83%208TF&price-to=5000&radius=50&sort=relevance&transmission=Automatic'
 DEFAULT_MAX_SCROLLS = 1  # Maybe default should be all ads possible?
 TABLE_NAME = 'ads'
-DATA_DIR = Path('data')
+
+# env-aware storage roots (work locally and on Railway)
+DATA_DIR = Path(os.getenv("DATA_DIR", "./data"))
+THUMBNAIL_DIR = Path(os.getenv("THUMBNAIL_DIR", str(DATA_DIR / "thumbnails")))
+IMAGES_DIR = Path(os.getenv("UPLOAD_DIR", str(DATA_DIR / "images")))
+
+# Make sure local dev folders exist
+THUMBNAIL_DIR.mkdir(parents=True, exist_ok=True)
+IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+
 
 # %% General scraping functions
 # ------------------
@@ -97,7 +105,7 @@ def reject_cookies(driver, timeout=15):
 # --------------
 
 
-def scrape_autotrader(url, search_id=None, save_to_excel=True, max_scrolls=DEFAULT_MAX_SCROLLS, status_callback=None, abort_event=None):
+def scrape_autotrader(url, search_id=None, save_to_excel=False, max_scrolls=DEFAULT_MAX_SCROLLS, status_callback=None, abort_event=None):
 
     if abort_event and abort_event.is_set():
         if status_callback:
@@ -212,7 +220,7 @@ def scrape_autotrader(url, search_id=None, save_to_excel=True, max_scrolls=DEFAU
 
         # Evaluate thumbnail
         thumb_url = safe_find("img.main-image", "src")
-        thumb_path = Path("thumbnails") / f"{ad_id}.jpg"
+        thumb_path = THUMBNAIL_DIR / f"{ad_id}.jpg"
 
         if thumb_url:
             if not thumb_path.exists():
@@ -301,8 +309,8 @@ def scrape_autotrader(url, search_id=None, save_to_excel=True, max_scrolls=DEFAU
             if abort_event and abort_event.is_set():
                 break
 
-            thumb = Path("thumbnails") / f"{ad_id}.jpg"
-            image_folder = Path("images") / ad_id
+            thumb = THUMBNAIL_DIR / f"{ad_id}.jpg"
+            image_folder = IMAGES_DIR / ad_id
 
             if thumb.exists():
                 thumb.unlink(missing_ok=True)
@@ -350,12 +358,13 @@ def extract_highest_res_images(ad_urls):
     return [info[1] for info in best_images.values()]
 
 
-def download_thumbnail(ad_id, thumbnail_url, save_dir='thumbnails'):
-    Path(save_dir).mkdir(parents=True, exist_ok=True)
+def download_thumbnail(ad_id, thumbnail_url, save_dir=THUMBNAIL_DIR):
+    save_dir = Path(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
     try:
         response = requests.get(thumbnail_url, timeout=10)
         if response.status_code == 200:
-            save_path = Path(save_dir) / f"{ad_id}.jpg"
+            save_path = save_dir / f"{ad_id}.jpg"
             with open(save_path, 'wb') as f:
                 f.write(response.content)
             print(f'✅ Saved thumbnail to {save_path}')
@@ -379,7 +388,7 @@ def download_missing_images(limit=None):
             print(f'⚠️ Skipping entry with missing ad_id or ad_url')
             continue
 
-        folder = Path("images") / ad_id
+        folder = IMAGES_DIR / ad_id
 
         if (folder / "01.jpg").exists():
             print(f'✅ Images already downloaded for {ad_id}. Skipping.')
@@ -395,7 +404,7 @@ def download_missing_images(limit=None):
 
 
 def download_pictures(ad_id, ad_url, progress_callback=None):
-    folder = Path("images") / ad_id
+    folder = IMAGES_DIR / ad_id
     folder.mkdir(parents=True, exist_ok=True)
 
     if progress_callback:

@@ -1,5 +1,13 @@
-from flask import Flask, request, jsonify, send_from_directory
-from utils.database_utils import create_ads_table, update_flag, load_ads, save_mot_history, get_mot_histories, delete_mot_history, bind_mot_to_ad, ensure_tables_exist, save_caz_data, get_caz_data, save_search_params, get_search_profiles, search_profile_exists, save_ads_data, delete_profile, delete_ads_by_search_id
+# server.py
+
+from flask import Flask, request, jsonify, send_from_directory, Response
+from flask_cors import CORS
+from utils.database_utils import (
+    create_ads_table, update_flag, load_ads, save_mot_history, get_mot_histories,
+    delete_mot_history, bind_mot_to_ad, ensure_tables_exist, save_caz_data, get_caz_data,
+    save_search_params, get_search_profiles, search_profile_exists, save_ads_data,
+    delete_profile, delete_ads_by_search_id
+)
 from utils.mot_history import get_mot_history
 from utils.scrape_utils import download_pictures, check_caz, scrape_autotrader
 from utils.search_utils import generate_autotrader_url
@@ -7,63 +15,126 @@ from pathlib import Path
 from utils.image_ocr import ocr_reg_plate_single
 import threading
 import time
+import os
+from functools import wraps
 
 app = Flask(__name__)
+# config.py contains DATA_DIR, UPLOAD_DIR, THUMBNAIL_DIR, etc.
+app.config.from_object("config")
+
+# --- CORS ---------------------------------------------------------
+# In prod, set ALLOWED_ORIGIN to Netlify URL (e.g., https://autoscraper.netlify.app)
+if app.config.get("ALLOWED_ORIGIN"):
+    CORS(app, resources={r"/api/*": {"origins": app.config["ALLOWED_ORIGIN"]}})
+else:
+    CORS(app)  # dev
+
+# --- Optional Basic Auth (protect API so only you can hit it) -----
+BASIC_USER = os.getenv("BASIC_AUTH_USERNAME")
+BASIC_PASS = os.getenv("BASIC_AUTH_PASSWORD")
+
+
+def _need_auth():
+    return Response("Auth required", 401, {"WWW-Authenticate": 'Basic realm="Private"'})
+
+
+def _check_auth(auth):
+    return auth and auth.username == BASIC_USER and auth.password == BASIC_PASS
+
+
+def require_basic_auth(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        # if creds not set, no auth in dev
+        if not BASIC_USER and not BASIC_PASS:
+            return fn(*args, **kwargs)
+        auth = request.authorization
+        if not _check_auth(auth):
+            return _need_auth()
+        return fn(*args, **kwargs)
+    return wrapper
+
+# Enforce auth for all /api/* routes
+
+
+@app.before_request
+def _lock_down():
+    # allow public health without auth
+    if request.path == "/api/health":
+        return None
+    if request.path.startswith("/api/"):
+        if not BASIC_USER and not BASIC_PASS:
+            return None
+        auth = request.authorization
+        if not _check_auth(auth):
+            return _need_auth()
+    return None
+
+
+# --- Paths / Directories ------------------------------------------
+# Use config-provided directories pointed at /data/... on Railway
+DATA_DIR = Path(app.config.get("DATA_DIR", "./data"))
+IMAGES_ROOT = Path(app.config.get("UPLOAD_DIR", DATA_DIR / "images"))
+THUMBNAIL_DIR = Path(app.config.get("THUMBNAIL_DIR", DATA_DIR / "thumbnails"))
+
+# Make sure folders exist (first boot on a fresh volume)
+IMAGES_ROOT.mkdir(parents=True, exist_ok=True)
+THUMBNAIL_DIR.mkdir(parents=True, exist_ok=True)
+
 TABLE_NAME = 'ads'
-THUMBNAIL_DIR = Path('thumbnails')
 ensure_tables_exist()
 
 # In-memory progress trackers
-
-# For scraping the ads
-scrape_progress = {}  # {profile_id: {"status": str}}
-scrape_threads = {}   # {profile_id: threading.Thread}
-scrape_abort_flags = {}  # {profile_id: threading.Event}
-# For downloading gallery images
-download_status = {}
+# Ad downloads
+scrape_progress = {}       # {profile_id: {"status": str}}
+scrape_threads = {}        # {profile_id: threading.Thread}
+scrape_abort_flags = {}    # {profile_id: threading.Event}
+# Picture download
+download_status = {}       # {ad_id: {...}}
 
 
 # %% GET
 # -------
 
-#### ADS ####
+#### HEALTH ####
 
-# Returns all rows from ads table
+@app.route("/api/health", methods=["GET"])
+def health():
+    return jsonify({"ok": True})
+
+
+#### ADS ####
 
 
 @app.route('/api/ads', methods=['GET'])
 def get_ads():
     search_id = request.args.get("search_id", default=None, type=int)
-
     ads = load_ads('ads', search_id=search_id)
-
     if not ads:
         return jsonify({"message": "No ads found", "data": []}), 200
     return jsonify({"data": ads or [], "message": "ok"})
 
 #### IMAGES ####
-
-# Serve thumbnails from root `thumbnails/` folder
+# Serve thumbnails from THUMBNAIL_DIR
 
 
 @app.route('/api/thumbnail/<ad_id>', methods=['GET'])
 def serve_thumbnail(ad_id):
     filename = f'{ad_id}.jpg'
     thumb_path = THUMBNAIL_DIR / filename
-
     if thumb_path.exists():
         return send_from_directory(THUMBNAIL_DIR, filename)
     else:
         print(f'❌ Thumbnail not found: {thumb_path}')
         return 'Thumbnail not found', 404
 
-# Serve scraped gallery image from root `images/` folder
+# Serve scraped gallery image from IMAGES_ROOT/<ad_id>/
 
 
 @app.route('/api/gallery-image/<ad_id>/<image_index>', methods=['GET', 'HEAD'])
 def serve_gallery_image(ad_id, image_index):
     filename = f"{str(image_index).zfill(2)}.jpg"
-    folder = Path("images") / ad_id
+    folder = IMAGES_ROOT / ad_id
     return send_from_directory(folder, filename)
 
 # Return the number of gallery images on disk for a specific ad_id
@@ -71,12 +142,11 @@ def serve_gallery_image(ad_id, image_index):
 
 @app.route('/api/image-count/<ad_id>', methods=['GET'])
 def image_count(ad_id):
-    folder = Path("images") / ad_id
+    folder = IMAGES_ROOT / ad_id
     if not folder.exists():
         return jsonify({"count": 0})
     count = len(list(folder.glob("*.jpg")))
     return jsonify({"count": count})
-
 
 # Scan single image for license plate
 
@@ -89,31 +159,23 @@ def ocr_single_image(ad_id, image_index):
     except Exception as e:
         print(f"❌ Error in OCR route: {e}")
         return jsonify({"error": str(e)}), 500
-    pass
 
 #### MOT ####
-
-# Get new MOT History through API
 
 
 @app.route('/api/mot_history/query', methods=['GET'])
 def query_mot_history():
     try:
-        reg = request.args.get("reg").replace(" ", "").strip()
+        reg = request.args.get("reg", "").replace(" ", "").strip()
         if not reg:
             return jsonify({'error': 'Missing registration number'}), 400
-
         result = get_mot_history(reg.upper())
-
         if 'error' in result:
             return jsonify(result), 403 if 'Forbidden' in result.get('details', '') else 500
-
         return jsonify(result)
     except Exception as e:
         print('❌ Internal server error in /api/mot_history:', str(e))
         return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
-
-# Get previous MOT History from local database
 
 
 @app.route('/api/mot_history', methods=['GET'])
@@ -125,24 +187,20 @@ def get_all_mot():
             print('Fetching all MOT histories')
         else:
             print(f'Fetching MOT history for ad_id {ad_id}')
-
         histories = get_mot_histories(ad_id)
         return jsonify(histories)
-
     except Exception as e:
         print(f'❌ Error fetching MOT history: {e}')
         return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
 
-
 #### CAZ ####
 
-# Goes through 4 CAZ pages using registration number
+
 @app.route('/api/check-caz', methods=['GET'])
 def api_check_caz():
     reg = request.args.get('reg')
     if not reg:
         return jsonify({'error': 'Missing registration'}), 400
-
     try:
         result = check_caz(reg)
         save_caz_data(reg, result)
@@ -150,8 +208,6 @@ def api_check_caz():
     except Exception as e:
         print(f'❌ CAZ check failed for {reg}: {e}')
         return jsonify({'error': str(e)}), 500
-
-# Gets CAZ charges data for specified registration number from local database
 
 
 @app.route("/api/caz", methods=["GET"])
@@ -168,8 +224,6 @@ def get_caz():
 
 #### SEARCH PROFILES ####
 
-# Retrieves a single search profile
-
 
 @app.route("/api/search-profile/<int:profile_id>", methods=["GET"])
 def get_profile(profile_id):
@@ -184,8 +238,6 @@ def get_all_profiles():
     profiles = get_search_profiles()
     return jsonify({"profiles": profiles})
 
-# Return `download_status`` generated by the `api_download_pictures()` route
-
 #### STATUSES ####
 
 
@@ -193,20 +245,17 @@ def get_all_profiles():
 def get_download_progress(ad_id):
     return jsonify(download_status.get(ad_id, {'status': 'Idle', 'current': 0, 'total': 0}))
 
-# Scraping progress
-
 
 @app.route('/api/scrape-progress/<int:profile_id>', methods=['GET'])
 def get_scrape_progress(profile_id):
     return jsonify(scrape_progress.get(profile_id, {"status": "Idle"}))
-
 
 # %% POST
 # -------
 
 #### ADS ####
 
-# Changes value of `excluded` or `favourited` column
+
 @app.route('/api/fav_exc', methods=['POST'])
 def favourite_or_exclude_ad():
     data = request.get_json()
@@ -237,8 +286,6 @@ def favourite_or_exclude_ad():
 
 #### MOT ####
 
-# Saves MOT History API results to `mot_history` table
-
 
 @app.route('/api/mot_history', methods=['POST'])
 def save_mot_entry():
@@ -251,8 +298,6 @@ def save_mot_entry():
     save_mot_history(reg, mot_data, ad_id)
     return jsonify({'status': 'saved'})
 
-# Link an MOT entry to an ad_id
-
 
 @app.route('/api/mot_history/bind', methods=['POST'])
 def bind_mot_entry():
@@ -264,7 +309,6 @@ def bind_mot_entry():
         return jsonify({'error': 'Missing registration or ad_id'}), 400
     print(f"🔗 Binding reg {reg} to ad_id {ad_id}")
 
-    # Interpret empty string as NULL
     if ad_id == "":
         ad_id = None
 
@@ -272,8 +316,7 @@ def bind_mot_entry():
     return jsonify({'status': 'bound'})
 
 #### IMAGES ####
-
-# Download gallery images for a specific ad to root `images/` folder by scraping the gallery page for highest resolution images.
+# Download gallery images for a specific ad to IMAGES_ROOT by scraping the gallery page.
 
 
 @app.route('/api/download-pictures', methods=['POST'])
@@ -282,17 +325,13 @@ def api_download_pictures():
     ad_id = data.get('ad_id')
     ad_url = data.get('ad_url')
 
-    image_dir = Path('images') / ad_id
-    if image_dir.exists() and any(image_dir.glob('.jpg')):
+    image_dir = IMAGES_ROOT / ad_id
+    if image_dir.exists() and any(image_dir.glob('*.jpg')):
         count = len(list(image_dir.glob("*.jpg")))
         print(
             f'Skipping download. Images already exist for {ad_id} ({count} images)')
         download_status[ad_id] = {
-            'status': 'Complete.',
-            'current': count,
-            'total': count
-        }
-
+            'status': 'Complete.', 'current': count, 'total': count}
         return jsonify({'success': True, 'skipped': True})
 
     download_status[ad_id] = {
@@ -301,22 +340,14 @@ def api_download_pictures():
     def progress_callback(current=None, total=None):
         if not isinstance(download_status.get(ad_id), dict):
             print(f"❌ WARNING: download_status[{ad_id}] corrupted. Resetting.")
-
-        # Ensure structure is always a dict
         if not isinstance(download_status.get(ad_id), dict):
             download_status[ad_id] = {
                 'status': 'Starting...', 'current': 0, 'total': 0}
-
-        # Status string updates
         if isinstance(current, str):
             download_status[ad_id]['status'] = current
-
-        # Numeric progress for images (e.g. `1/10``)
         elif current is not None and total is not None:
             download_status[ad_id]['current'] = current
             download_status[ad_id]['total'] = total
-
-            # Only update status if not already a string status
             if 'Downloading' in download_status[ad_id].get('status', ''):
                 download_status[ad_id]['status'] = f'Downloading {current}/{total}...'
 
@@ -325,15 +356,11 @@ def api_download_pictures():
             download_pictures(
                 ad_id, ad_url, progress_callback=progress_callback)
         finally:
+            total = download_status[ad_id].get('total', 1)
             download_status[ad_id] = {
-                'status': 'Complete.',
-                'current': download_status[ad_id].get('total', 1),
-                'total': download_status[ad_id].get('total', 1)
-            }
+                'status': 'Complete.', 'current': total, 'total': total}
 
-    # Launch in background thread to avoid blocking Flask
-    threading.Thread(target=run_download).start()
-
+    threading.Thread(target=run_download, daemon=True).start()
     return jsonify({'success': True})
 
 #### SEARCH PROFILES ####
@@ -347,8 +374,6 @@ def api_generature_url():
         return jsonify({"url": url})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-# Saves user's search preferences into a profile. Ads are linked to this profile (can be linked to multiple).
 
 
 @app.route("/api/save-search-profile", methods=["POST"])
@@ -368,20 +393,16 @@ def save_search_profile():
     last_row = save_search_params(name, params, url)
     return jsonify({"status": "saved", "id": last_row})
 
-# Runs `scraper.py` with provided link to update databases
-
 
 @app.route("/api/run-scraper/<int:profile_id>", methods=["POST"])
 def run_scraper(profile_id):
     profile = get_search_profiles(profile_id)
-
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
 
     url = profile.get('url')
     search_id = profile.get('id')
 
-    # Initiate progress
     scrape_progress[profile_id] = {"status": "Starting scraper..."}
     abort_event = threading.Event()
     scrape_abort_flags[profile_id] = abort_event
@@ -392,9 +413,8 @@ def run_scraper(profile_id):
     def run():
         try:
             update_status("Launching browser...")
-            df = scrape_autotrader(url, search_id=search_id, max_scrolls=9_999_999, status_callback=update_status,
-                                   abort_event=abort_event)
-
+            df = scrape_autotrader(url, search_id=search_id, max_scrolls=9_999_999,
+                                   status_callback=update_status, abort_event=abort_event)
             if df is None:
                 update_status("Scraping aborted.")
             else:
@@ -402,22 +422,19 @@ def run_scraper(profile_id):
                 update_status(f"Saving {len(df)} ads to database...")
                 save_ads_data(df, 'ads')
                 update_status(f"{len(df)} ads saved to the database.")
-
         finally:
             update_status("Complete.")
 
             def cleanup():
-                time.sleep(3)  # Let frontend detect 'Complete.'
+                time.sleep(3)
                 scrape_progress.pop(profile_id, None)
                 scrape_threads.pop(profile_id, None)
                 scrape_abort_flags.pop(profile_id, None)
+            threading.Thread(target=cleanup, daemon=True).start()
 
-            threading.Thread(target=cleanup).start()
-
-    thread = threading.Thread(target=run)
+    thread = threading.Thread(target=run, daemon=True)
     thread.start()
     scrape_threads[profile_id] = thread
-
     return jsonify({"message": f"Scraping started for profile {profile['name']}"})
 
 
@@ -428,15 +445,13 @@ def cancel_scraper(profile_id):
     thread = scrape_threads.get(profile_id)
     if not flag or not thread:
         return jsonify({"error": "No running scraper for this profile"}), 400
-
     flag.set()
     return jsonify({"message": "Scrape cancelled."})
-
 
 # %% DELETE
 # ---------
 
-# Delete an MOT entry
+
 @app.route('/api/mot_history/<reg>', methods=['DELETE'])
 def delete_mot_entry(reg):
     delete_mot_history(reg)
@@ -450,6 +465,10 @@ def delete_search_profile(profile_id):
     return jsonify({"message": "Profile and associated as deleted successfully"}), 200
 
 
+# --- Local dev only ------------------------------------------------
 if __name__ == '__main__':
+    # Local dev: SQLite under ./data, create folders & tables, run Flask
+    (DATA_DIR / "images").mkdir(parents=True, exist_ok=True)
+    (DATA_DIR / "thumbnails").mkdir(parents=True, exist_ok=True)
     create_ads_table(TABLE_NAME)
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5001")), debug=True)
