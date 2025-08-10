@@ -4,7 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev:auto": "node dev.js"
+    "dev": "vite",
+    "dev:auto": "node dev.js",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --strictPort"
   },
   "dependencies": {
     "@use-gesture/react": "^10.3.1",
