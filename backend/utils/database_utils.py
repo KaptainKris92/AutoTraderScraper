@@ -2,7 +2,6 @@ import os
 import sqlite3
 import json
 from datetime import datetime
-import pandas as pd
 from pathlib import Path
 
 # SQLite location
@@ -100,7 +99,7 @@ def create_search_profiles_table():
 
 
 def save_ads_data(data, table_name='ads'):
-
+    import pandas as pd
     df = pd.DataFrame(data)
 
     if df.empty:
@@ -189,6 +188,7 @@ def update_search_profile_timestamp(search_id):
 # ------------------------------
 
 def load_ads(table='ads', search_id=None):
+    import pandas as pd
     with sqlite3.connect(DB_PATH) as conn:
         if search_id is None:
             query = f'SELECT * FROM {table}'

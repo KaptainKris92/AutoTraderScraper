@@ -1,5 +1,3 @@
-# server.py
-
 from flask import Flask, request, jsonify, send_from_directory, Response
 from flask_cors import CORS
 import utils.database_utils as db
@@ -96,6 +94,27 @@ download_status = {}       # {ad_id: {...}}
 @app.route("/api/health", methods=["GET"])
 def health():
     return jsonify({"ok": True})
+
+# For debugging Railway pandas/numpy import errors
+
+
+@app.route("/api/diag/python", methods=["GET"])
+def diag_python():
+    # Don’t import pandas here!
+    import sys
+    import os
+    info = {
+        "cwd": os.getcwd(),
+        "sys_path_0": sys.path[0],
+        "env_PYTHONPATH": os.getenv("PYTHONPATH"),
+    }
+    try:
+        import numpy
+        info["numpy_file"] = getattr(numpy, "__file__", "unknown")
+        info["numpy_version"] = getattr(numpy, "__version__", "unknown")
+    except Exception as e:
+        info["numpy_error"] = str(e)
+    return jsonify(info)
 
 
 #### ADS ####
