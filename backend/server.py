@@ -2,12 +2,7 @@
 
 from flask import Flask, request, jsonify, send_from_directory, Response
 from flask_cors import CORS
-from utils.database_utils import (
-    create_ads_table, update_flag, load_ads, save_mot_history, get_mot_histories,
-    delete_mot_history, bind_mot_to_ad, ensure_tables_exist, save_caz_data, get_caz_data,
-    save_search_params, get_search_profiles, search_profile_exists, save_ads_data,
-    delete_profile, delete_ads_by_search_id
-)
+import utils.database_utils as db
 from utils.mot_history import get_mot_history
 from utils.scrape_utils import download_pictures, check_caz, scrape_autotrader
 from utils.search_utils import generate_autotrader_url
@@ -82,7 +77,7 @@ IMAGES_ROOT.mkdir(parents=True, exist_ok=True)
 THUMBNAIL_DIR.mkdir(parents=True, exist_ok=True)
 
 TABLE_NAME = 'ads'
-ensure_tables_exist()
+db.ensure_tables_exist()
 
 # In-memory progress trackers
 # Ad downloads
@@ -109,7 +104,7 @@ def health():
 @app.route('/api/ads', methods=['GET'])
 def get_ads():
     search_id = request.args.get("search_id", default=None, type=int)
-    ads = load_ads('ads', search_id=search_id)
+    ads = db.load_ads('ads', search_id=search_id)
     if not ads:
         return jsonify({"message": "No ads found", "data": []}), 200
     return jsonify({"data": ads or [], "message": "ok"})
@@ -187,7 +182,7 @@ def get_all_mot():
             print('Fetching all MOT histories')
         else:
             print(f'Fetching MOT history for ad_id {ad_id}')
-        histories = get_mot_histories(ad_id)
+        histories = db.get_mot_histories(ad_id)
         return jsonify(histories)
     except Exception as e:
         print(f'❌ Error fetching MOT history: {e}')
@@ -203,7 +198,7 @@ def api_check_caz():
         return jsonify({'error': 'Missing registration'}), 400
     try:
         result = check_caz(reg)
-        save_caz_data(reg, result)
+        db.save_caz_data(reg, result)
         return jsonify({'registration': reg.upper(), 'zone': result})
     except Exception as e:
         print(f'❌ CAZ check failed for {reg}: {e}')
@@ -216,7 +211,7 @@ def get_caz():
     if not reg:
         return jsonify({"error": "Missing registration"}), 400
     try:
-        results = get_caz_data(reg)
+        results = db.get_caz_data(reg)
         return jsonify({"registration": reg.upper(), "zone": results})
     except Exception as e:
         print(f"❌ Failed to load CAZ from DB: {e}")
@@ -227,7 +222,7 @@ def get_caz():
 
 @app.route("/api/search-profile/<int:profile_id>", methods=["GET"])
 def get_profile(profile_id):
-    profile = get_search_profiles(profile_id)
+    profile = db.get_search_profiles(profile_id)
     if profile:
         return jsonify(profile)
     return jsonify({"error": "Profile not found"}), 404
@@ -235,7 +230,7 @@ def get_profile(profile_id):
 
 @app.route("/api/search-profiles", methods=["GET"])
 def get_all_profiles():
-    profiles = get_search_profiles()
+    profiles = db.get_search_profiles()
     return jsonify({"profiles": profiles})
 
 #### STATUSES ####
@@ -281,7 +276,7 @@ def favourite_or_exclude_ad():
     else:
         return jsonify({'error': f"Invalid operation '{operation}'. Must be either 'favourite' or 'exclude'"}), 400
 
-    update_flag(ad_id, column, value, TABLE_NAME)
+    db.update_flag(ad_id, column, value, TABLE_NAME)
     return jsonify({"status": "ok", "ad_id": ad_id, column: value})
 
 #### MOT ####
@@ -295,7 +290,7 @@ def save_mot_entry():
     ad_id = data.get('ad_id')
     if not reg or not mot_data:
         return jsonify({'error': 'Missing registration or MOT data'}), 400
-    save_mot_history(reg, mot_data, ad_id)
+    db.save_mot_history(reg, mot_data, ad_id)
     return jsonify({'status': 'saved'})
 
 
@@ -312,7 +307,7 @@ def bind_mot_entry():
     if ad_id == "":
         ad_id = None
 
-    bind_mot_to_ad(reg, ad_id)
+    db.bind_mot_to_ad(reg, ad_id)
     return jsonify({'status': 'bound'})
 
 #### IMAGES ####
@@ -382,7 +377,7 @@ def save_search_profile():
     name = data.get("name")
     params = data.get("params")
     url = data.get("generated_url")
-    existing_param_profile = search_profile_exists(params)
+    existing_param_profile = db.search_profile_exists(params)
 
     if not name or not params:
         return jsonify({"error": "Missing name or params"}), 400
@@ -390,13 +385,13 @@ def save_search_profile():
     if existing_param_profile:
         return jsonify({"error": f"Profile already exists", "name": existing_param_profile}), 409
 
-    last_row = save_search_params(name, params, url)
+    last_row = db.save_search_params(name, params, url)
     return jsonify({"status": "saved", "id": last_row})
 
 
 @app.route("/api/run-scraper/<int:profile_id>", methods=["POST"])
 def run_scraper(profile_id):
-    profile = get_search_profiles(profile_id)
+    profile = db.get_search_profiles(profile_id)
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
 
@@ -420,7 +415,7 @@ def run_scraper(profile_id):
             else:
                 df['search_id'] = search_id
                 update_status(f"Saving {len(df)} ads to database...")
-                save_ads_data(df, 'ads')
+                db.save_ads_data(df, 'ads')
                 update_status(f"{len(df)} ads saved to the database.")
         finally:
             update_status("Complete.")
@@ -454,14 +449,14 @@ def cancel_scraper(profile_id):
 
 @app.route('/api/mot_history/<reg>', methods=['DELETE'])
 def delete_mot_entry(reg):
-    delete_mot_history(reg)
+    db.delete_mot_history(reg)
     return jsonify({'status': 'deleted'})
 
 
 @app.route("/api/delete-search-profile/<int:profile_id>", methods=["DELETE"])
 def delete_search_profile(profile_id):
-    delete_profile(profile_id)
-    delete_ads_by_search_id(profile_id)
+    db.delete_profile(profile_id)
+    db.delete_ads_by_search_id(profile_id)
     return jsonify({"message": "Profile and associated as deleted successfully"}), 200
 
 
@@ -470,5 +465,5 @@ if __name__ == '__main__':
     # Local dev: SQLite under ./data, create folders & tables, run Flask
     (DATA_DIR / "images").mkdir(parents=True, exist_ok=True)
     (DATA_DIR / "thumbnails").mkdir(parents=True, exist_ok=True)
-    create_ads_table(TABLE_NAME)
+    db.create_ads_table(TABLE_NAME)
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5001")), debug=True)
