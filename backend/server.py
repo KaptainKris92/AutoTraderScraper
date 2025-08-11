@@ -15,6 +15,9 @@ app = Flask(__name__)
 # config.py contains DATA_DIR, UPLOAD_DIR, THUMBNAIL_DIR, etc.
 app.config.from_object("config")
 
+# Allow both /path and /path/
+app.url_map.strict_slashes = False
+
 # --- CORS ---------------------------------------------------------
 # In prod, set ALLOWED_ORIGIN to Netlify URL (e.g., https://autoscraper.netlify.app)
 if app.config.get("ALLOWED_ORIGIN"):
@@ -381,11 +384,13 @@ def api_download_pictures():
 
 @app.route("/api/generate-search-url", methods=["POST"])
 def api_generature_url():
-    data = request.get_json()
+    # Accept JSON safely; avoid 400s on empty body
+    data = request.get_json(silent=True) or {}
     try:
         url = generate_autotrader_url(data)
         return jsonify({"url": url})
     except Exception as e:
+        print(f"❌ generate-search-url failed: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -476,6 +481,11 @@ def delete_search_profile(profile_id):
     db.delete_profile(profile_id)
     db.delete_ads_by_search_id(profile_id)
     return jsonify({"message": "Profile and associated as deleted successfully"}), 200
+
+
+print("Registered routes:")
+for r in app.url_map.iter_rules():
+    print(f"  {r.rule}  methods={sorted(r.methods)}")
 
 
 # --- Local dev only ------------------------------------------------
