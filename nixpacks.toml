@@ -1,8 +1,7 @@
 [setup]
 nixPkgs = [
-  "gcc",           # provides libstdc++.so.6
-  "libstdcxx5",    # older libstdc++ just in case
-  "mesa",
+  "gcc",           # libstdc++.so.6
+  "libglvnd",      # libGL.so.1 provider on Nix
   "glib",
   "xorg.libX11",
   "xorg.libXext",
