@@ -4,7 +4,7 @@ nixPkgs = [
     "chromedriver",
     "nss",
     "fontconfig",
-    "freetype"
+    "freetype",
     "gcc",           # libstdc++.so.6
     "libglvnd",      # libGL.so.1 provider on Nix
     "glib",
