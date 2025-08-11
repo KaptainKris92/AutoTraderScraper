@@ -119,6 +119,11 @@ export default function Settings() {
       body: JSON.stringify(payload),
     });
 
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`generate-search-url failed: ${res.status} ${text}`);
+    }
+
     const data = await res.json();
     if (data.url) {
       setGeneratedUrl(data.url);
