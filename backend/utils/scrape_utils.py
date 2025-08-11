@@ -57,7 +57,9 @@ def create_stealth_driver(headless=True, url=None):
     if headless:
         options.add_argument("--headless=new")
     options.add_argument("--window-size=1920,1080")
+    options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
     options.add_argument("--log-level-3")  # Suppresses all but fatal logs
     options.add_argument("--disable-logging")
     options.add_argument("--disable-software-rasterizer")
@@ -65,6 +67,7 @@ def create_stealth_driver(headless=True, url=None):
         "--disable-features=UseModernMediaControls,SyncService")
     options.add_argument("--disable-gl-drawing-for-tests")
     options.add_experimental_option("excludeSwitches", ["enable-logging"])
+    options.binary_location = chrome_path
 
     service = Service(driver_path)
     driver = webdriver.Chrome(service=service, options=options)
@@ -452,6 +455,8 @@ def download_pictures(ad_id, ad_url, progress_callback=None):
 
     except Exception as e:
         print(f"⚠️ Failed to click thumbnail for {ad_id}: {e}")
+        Path("screenshots").mkdir(parents=True,
+                                  exist_ok=True)   # ✅ ensure dir exists
         driver.save_screenshot(f"screenshots/error_click_{ad_id}.png")
         driver.quit()
         return
