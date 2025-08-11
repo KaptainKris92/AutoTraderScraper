@@ -1,13 +1,13 @@
 from utils.general_utils import extract_post_date
 from utils.database_utils import check_ad_id_exists, get_saved_ad_ids, delete_ads_by_ad_id, delete_ads_by_search_id, load_ads, update_search_profile_timestamp
 from selenium_stealth import stealth
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium import webdriver
+import shutil
 import os
 import time
 import re
@@ -42,7 +42,17 @@ IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 # ------------------
 
 
-def create_stealth_driver(headless=True, url=AUTOTRADER_URL):
+def create_stealth_driver(headless=True, url=None):
+    chrome_path = shutil.which("chromium") or shutil.which(
+        "google-chrome") or shutil.which("chrome")
+    driver_path = shutil.which("chromedriver")
+
+    if not chrome_path:
+        raise RuntimeError("Chromium/Chrome not found on PATH.")
+
+    if not driver_path:
+        raise RuntimeError("chromedriver not found on PATH.")
+
     options = Options()
     if headless:
         options.add_argument("--headless=new")
@@ -56,7 +66,7 @@ def create_stealth_driver(headless=True, url=AUTOTRADER_URL):
     options.add_argument("--disable-gl-drawing-for-tests")
     options.add_experimental_option("excludeSwitches", ["enable-logging"])
 
-    service = Service(ChromeDriverManager().install(), log_path=os.devnull)
+    service = Service(driver_path)
     driver = webdriver.Chrome(service=service, options=options)
 
     # Apply stealth settings
@@ -69,7 +79,8 @@ def create_stealth_driver(headless=True, url=AUTOTRADER_URL):
             fix_hairline=True,
             )
 
-    driver.get(url)
+    if url:
+        driver.get(url)
 
     return driver
 
