@@ -1,7 +1,6 @@
 import os
 import re
 import string
-import cv2
 
 # --- env-aware paths (as we set earlier) ---
 DATA_DIR = os.getenv("DATA_DIR", "./data")
@@ -68,6 +67,7 @@ def detect_plate_and_crop(img, debug_img=True):
 
 
 def preprocess_image(path, debug_path=None):
+    import cv2
     path = str(path)  # Make sure path is a string for OpenCV
     img = cv2.imread(path)  # BGR
 
