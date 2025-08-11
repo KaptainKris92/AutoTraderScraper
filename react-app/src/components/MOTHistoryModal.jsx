@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { FaTimes, FaTrash, FaLink } from "react-icons/fa";
 import { useModalHistory } from "../hooks/useModalHistory";
 import CAZModal from "./CAZModal";
+import { apiFetch } from "../utils/api";
 
 // Gets the registration year from the registration number
 function parseRegYear(reg) {
@@ -57,7 +58,7 @@ export default function MOTHistoryModal({ onClose, adId, initialReg }) {
 
   // Load all MOT histories
   useEffect(() => {
-    fetch("/api/mot_history")
+    apiFetch("mot_history")
       .then((res) => res.json())
       .then((data) => {
         setMotHistories(data);
@@ -68,15 +69,15 @@ export default function MOTHistoryModal({ onClose, adId, initialReg }) {
 
   const handleSearchMOT = async () => {
     try {
-      const res = await fetch(
-        `/api/mot_history/query?reg=${encodeURIComponent(regInput)}`
+      const res = await apiFetch(
+        `mot_history/query?reg=${encodeURIComponent(regInput)}`
       );
       const data = await res.json();
       if (!data || data.error)
         throw new Error(data.error || "Invalid response");
 
       // Save to DB
-      await fetch("/api/mot_history", {
+      await apiFetch("mot_history", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -87,7 +88,7 @@ export default function MOTHistoryModal({ onClose, adId, initialReg }) {
       });
 
       // Refresh
-      const updated = await fetch("/api/mot_history").then((r) => r.json());
+      const updated = await apiFetch("mot_history").then((r) => r.json());
       setMotHistories(updated);
       setActiveRegistration(regInput.toUpperCase());
       setCazResults([]); // Clear CAZ when new reg searched
@@ -101,15 +102,15 @@ export default function MOTHistoryModal({ onClose, adId, initialReg }) {
   };
 
   const handleDelete = async (registration) => {
-    await fetch(`/api/mot_history/${registration}`, { method: "DELETE" });
+    await apiFetch(`mot_history/${registration}`, { method: "DELETE" });
     setMotHistories((prev) =>
       prev.filter((h) => h.registration !== registration)
     );
-    setActiveIndex(0);
+    setActiveRegistration((prev) => (prev === registration ? null : prev));
   };
 
   const handleUnbind = async () => {
-    await fetch(`/api/mot_history/bind`, {
+    await apiFetch(`mot_history/bind`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -136,7 +137,7 @@ export default function MOTHistoryModal({ onClose, adId, initialReg }) {
     // Try to load cached CAZ data when registration changes
     const loadCachedCAZ = async () => {
       try {
-        const cached = await fetch(`/api/caz?reg=${activeRegistration}`).then(
+        const cached = await apiFetch(`caz?reg=${activeRegistration}`).then(
           (r) => r.json()
         );
         if (Array.isArray(cached.zone) && cached.zone.length > 0) {
@@ -281,8 +282,8 @@ export default function MOTHistoryModal({ onClose, adId, initialReg }) {
                 setCazLoading(true);
                 try {
                   // Try loading from DB first
-                  const cached = await fetch(
-                    `/api/caz?reg=${activeHistory.registration}`
+                  const cached = await apiFetch(
+                    `caz?reg=${activeHistory.registration}`
                   ).then((r) => r.json());
                   if (Array.isArray(cached.zone) && cached.zone.length > 0) {
                     setCazResults(cached.zone);
@@ -290,8 +291,8 @@ export default function MOTHistoryModal({ onClose, adId, initialReg }) {
                   }
 
                   // If not in DB, scrape
-                  const res = await fetch(
-                    `/api/check-caz?reg=${activeHistory.registration}`
+                  const res = await apiFetch(
+                    `check-caz?reg=${activeHistory.registration}`
                   );
                   const data = await res.json();
 

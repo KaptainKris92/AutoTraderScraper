@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useDrag } from "@use-gesture/react";
 import { useModalHistory } from "../hooks/useModalHistory";
+import { apiFetch, apiUrl } from "../utils/api";
 
 export default function GalleryViewer({
   adId,
@@ -36,7 +37,7 @@ export default function GalleryViewer({
 
     const poll = async () => {
       try {
-        const res = await fetch(`/api/download-progress/${adId}`);
+        const res = await apiFetch(`download-progress/${adId}`);
         const data = await res.json();
         setProgressStatus(data.status);
 
@@ -68,15 +69,14 @@ export default function GalleryViewer({
 
     const fetchImages = async () => {
       try {
-        const res = await fetch(`/api/image-count/${adId}`);
+        const res = await apiFetch(`image-count/${adId}`);
         const data = await res.json();
         const count = data.count;
 
         if (count > 0) {
           const urls = Array.from(
             { length: count },
-            (_, i) =>
-              `/api/gallery-image/${adId}/${String(i + 1).padStart(2, "0")}`
+            (_, i) => apiUrl(`gallery-image/${adId}/${String(i + 1).padStart(2, "0")}`)
           );
           setImages(urls);
         } else {
@@ -181,7 +181,7 @@ export default function GalleryViewer({
 
     try {
       const imgNumber = String(currentIndex + 1).padStart(2, "0");
-      const res = await fetch(`/api/ocr-single/${adId}/${imgNumber}`);
+      const res = await apiFetch(`ocr-single/${adId}/${imgNumber}`);
       const data = await res.json();
 
       console.log(adId, imgNumber, data);
@@ -206,12 +206,12 @@ export default function GalleryViewer({
 
     try {
       // Fetch MOT history
-      const res = await fetch(`/api/mot_history/query?reg=${ocrResult}`);
+      const res = await apiFetch(`mot_history/query?reg=${ocrResult}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
       // Save MOT history
-      await fetch("/api/mot_history", {
+      await apiFetch("mot_history", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -232,7 +232,7 @@ export default function GalleryViewer({
       console.error("Failed to confirm reg:", err);
       alert("Failed to fetch and bind MOT data.");
     } finally {
-      setMotLoading(true);
+      setMotLoading(false);
     }
   };
 
@@ -241,13 +241,13 @@ export default function GalleryViewer({
   const handleQuickReg = async () => {
     const cleanReg = regInput.replace(/\s+/g, "").toUpperCase();
     try {
-      const res = await fetch(
-        `/api/mot_history/query?reg=${encodeURIComponent(cleanReg)}`
+      const res = await apiFetch(
+        `mot_history/query?reg=${encodeURIComponent(cleanReg)}`
       );
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      await fetch("/api/mot_history", {
+      await apiFetch("mot_history", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -266,14 +266,6 @@ export default function GalleryViewer({
       alert("❌ Failed to fetch MOT history for that reg.");
     }
   };
-
-  {
-    progressStatus && (
-      <div className="text-center mt-4 text-sm text-gray-400">
-        {progressStatus}
-      </div>
-    );
-  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex flex-col items-center justify-center modal-open">

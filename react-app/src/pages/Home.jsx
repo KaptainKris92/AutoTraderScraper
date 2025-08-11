@@ -3,6 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import CardViewer from "../components/CardViewer";
 import { sortAds } from "../utils/sortUtils";
 import SortControls from "../components/SortControls";
+import { apiFetch } from "../utils/api";
+
 
 export default function Home() {  
 
@@ -19,11 +21,11 @@ export default function Home() {
 
         const activeSearchId = localStorage.getItem("activeSearchId");
         const activeSearchName = localStorage.getItem("activeSearchName");
-        const apiUrl = activeSearchId
-            ? `/api/ads?search_id=${activeSearchId}`
-            : "/api/ads";            
+        const path = activeSearchId
+            ? `ads?search_id=${activeSearchId}`
+            : "ads";            
 
-        fetch(apiUrl)
+        apiFetch(path)
             .then((res) => res.json())
             .then((data) => {
                 const adsArray = Array.isArray(data) ? data : data.data;
@@ -43,7 +45,7 @@ export default function Home() {
     }, []);
 
     const updateFavourite = (adId, newValue = 1) => {
-        fetch("/api/fav_exc", {
+        apiFetch("fav_exc", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ad_id: adId, operation: "favourite", value: newValue}),
@@ -58,7 +60,7 @@ export default function Home() {
     };
 
     const updateExclude = (adId) => {
-        fetch("/api/fav_exc", {
+        apiFetch("fav_exc", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ ad_id: adId, operation: "exclude", value: 1}),

@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { apiFetch } from "../utils/api";
 
 export default function ScrapeProgressModal({ profileId, onClose }) {
   const [status, setStatus] = useState("Starting...");
@@ -6,7 +7,7 @@ export default function ScrapeProgressModal({ profileId, onClose }) {
 
   useEffect(() => {
     const interval = setInterval(async () => {
-      const res = await fetch(`/api/scrape-progress/${profileId}`);
+      const res = await apiFetch(`scrape-progress/${profileId}`);
       const data = await res.json();
       setStatus(data.status);
       if (data.status === "Complete.") {
@@ -24,7 +25,7 @@ export default function ScrapeProgressModal({ profileId, onClose }) {
       <div className="text-sm text-gray-300">{status}</div>
 
       <button onClick={async () => {
-        await fetch(`/api/cancel-scraper/${profileId}`, { method: "POST" });
+        await apiFetch(`cancel-scraper/${profileId}`, { method: "POST" });
         onClose();
       }}
       className = "mt-4 px-3 py-1 bg-red-600 text-white rounded"

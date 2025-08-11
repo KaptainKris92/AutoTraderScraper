@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useModalHistory } from "../hooks/useModalHistory"
+import { apiFetch } from "../utils/api";
 
 export default function BindMOTModal({ adId, onClose, onBindSuccess }) {
     useModalHistory(onClose);
@@ -7,7 +8,7 @@ export default function BindMOTModal({ adId, onClose, onBindSuccess }) {
     const [unboundHistories, setUnboundHistories] = useState([]);
 
     useEffect(() => {
-        fetch("/api/mot_history")
+        apiFetch("mot_history")
         .then((res) => res.json())
         .then((data) =>
             setUnboundHistories(data.filter((h) => !h.ad_id)) // Only show unbound MOT histories
@@ -17,7 +18,7 @@ export default function BindMOTModal({ adId, onClose, onBindSuccess }) {
 
     const handleBind = async (registration) => {
         console.log(`Binding ${registration} to ${adId}`)
-        await fetch("/api/mot_history/bind", {
+        await apiFetch("mot_history/bind", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ registration, ad_id: adId }),

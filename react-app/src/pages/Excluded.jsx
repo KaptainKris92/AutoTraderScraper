@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { sortAds } from "../utils/sortUtils";
 import SortControls from "../components/SortControls";
+import { apiFetch } from "../utils/api";
 
 export default function Excluded() {
     const [ads, setAds] = useState([]);
@@ -13,7 +14,7 @@ export default function Excluded() {
     const [sortDirection, setSortDirection] = useState(defaultDirection);
 
     useEffect(() => {
-        fetch("/api/ads")
+        apiFetch("ads")
         .then((res) => res.json())
         .then((res) => {
             const onlyExcluded = res.data.filter((ad) => ad.excluded === 1);
@@ -24,7 +25,7 @@ export default function Excluded() {
     }, [sortBy, sortDirection]);
 
     const handleUnexclude = (adId) => {
-        fetch("/api/fav_exc", {
+        apiFetch("fav_exc", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ad_id: adId, operation: "exclude", value: 0 }),

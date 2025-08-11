@@ -4,6 +4,8 @@ import GalleryViewer from "./GalleryViewer";
 import { FaHeart, FaTimes, FaCar } from "react-icons/fa";
 import { useDrag } from "@use-gesture/react"; // For mobile swiping
 import MOTHistoryModal from "./MOTHistoryModal";
+import { apiFetch, apiUrl } from "../utils/api";
+
 
 export default function CardViewer({
   ads,
@@ -40,7 +42,7 @@ export default function CardViewer({
 
     try {
       // Check image count
-      const res = await fetch(`/api/image-count/${currentAd.ad_id}`);
+      const res = await apiFetch(`image-count/${currentAd.ad_id}`);
       const { count } = await res.json();
 
       if (count > 0) {
@@ -49,7 +51,7 @@ export default function CardViewer({
       }
 
       // Trigger download
-      const downloadRes = await fetch("/api/download-pictures", {
+      const downloadRes = await apiFetch("download-pictures", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -65,7 +67,7 @@ export default function CardViewer({
       // Poll for readiness
       let tries = 0;
       while (tries < 20) {
-        const pollRes = await fetch(`/api/image-count/${currentAd.ad_id}`);
+        const pollRes = await apiFetch(`image-count/${currentAd.ad_id}`);
         const { count: currentCount } = await pollRes.json();
         if (currentCount > 0) {
           setGalleryReady(true);

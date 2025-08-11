@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { sortAds } from "../utils/sortUtils";
 import SortControls from "../components/SortControls";
+import { apiFetch } from "../utils/api";
 
 export default function Favourites() {
     const [ads, setAds] = useState([]);
@@ -13,7 +14,7 @@ export default function Favourites() {
     const [sortDirection, setSortDirection] = useState(defaultDirection);
 
     useEffect(() => {
-        fetch("/api/ads")
+        apiFetch("ads")
         .then((res) => res.json())        
         .then((res) => {
             const onlyFaves = res.data.filter((ad) => ad.favourited === 1 && ad.excluded !== 1);
@@ -24,7 +25,7 @@ export default function Favourites() {
     }, [sortBy, sortDirection]);
 
     const handleUnfavourite = (adId) => {
-        fetch("/api/fav_exc", {
+        apiFetch("fav_exc", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ad_id: adId, operation: "favourite", value: 0 }),
@@ -34,12 +35,12 @@ export default function Favourites() {
     };
 
     const handleRemoveAndExclude = (adId) => {
-        fetch("/api/fav_exc", {
+        apiFetch("fav_exc", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ad_id: adId, operation: "favourite", value: 0 }),
         }).then(() => {
-        fetch("/api/fav_exc", {
+        apiFetch("fav_exc", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ ad_id: adId, operation: "exclude", value: 1 }),

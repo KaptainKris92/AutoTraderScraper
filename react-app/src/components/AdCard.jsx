@@ -3,6 +3,7 @@ import { FaHeart, FaSearch, FaLink, FaEye, FaUnlink } from "react-icons/fa";
 import BindMOTModal from "./BindMOTModal";
 import MOTHistoryModal from "./MOTHistoryModal";
 import GalleryViewer from "./GalleryViewer";
+import { apiFetch, apiUrl } from "../utils/api";
 
 function getDaysAgo(postDateStr) {
   if (!postDateStr) return null;
@@ -35,8 +36,8 @@ export default function AdCard({ ad, refreshKey, onOpenGallery }) {
 
   // Fetch the bound registration number
   const fetchBoundReg = async () => {
-    try {
-      const res = await fetch(`/api/mot_history?ad_id=${ad.ad_id}`);
+    try {      
+      const res = await apiFetch(`mot_history?ad_id=${ad.ad_id}`);
       if (!res.ok) {
         throw new Error(`Server responded with status ${res.status}`);
       }
@@ -60,7 +61,7 @@ export default function AdCard({ ad, refreshKey, onOpenGallery }) {
   // Unbinding reg numbers
   const handleUnbind = async () => {
     if (!boundReg) return;
-    await fetch(`/api/mot_history/bind`, {
+    await apiFetch("mot_history/bind", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ registration: boundReg, ad_id: "" }),
@@ -74,22 +75,19 @@ export default function AdCard({ ad, refreshKey, onOpenGallery }) {
 
     try {
       // 1. Query MOT history from GOV API
-      const res = await fetch(
-        `/api/mot_history/query?reg=${encodeURIComponent(cleanReg)}`
-      );
+      const res = await apiFetch(`mot_history/query?reg=${encodeURIComponent(cleanReg)}`);
       const data = await res.json();
       if (!data || data.error)
         throw new Error(data.error || "Invalid response");
 
       // 2. Save it to the database (unbound first)
-      await fetch("/api/mot_history", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registration: cleanReg, data, ad_id: null }),
-      });
-
+      await apiFetch("mot_history", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ registration: cleanReg, data, ad_id: null }),
+        });
       // 3. Immediately bind to current ad
-      await fetch("/api/mot_history/bind", {
+      await apiFetch("mot_history/bind", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ registration: cleanReg, ad_id: ad.ad_id }),
@@ -115,7 +113,7 @@ export default function AdCard({ ad, refreshKey, onOpenGallery }) {
 
   // Show thumbnail for each ad
   useEffect(() => {
-    setCurrentThumb(ad.thumbnail || `/api/thumbnail/${ad.ad_id}`);
+    setCurrentThumb(ad.thumbnail || apiUrl(`thumbnail/${ad.ad_id}`));
     setThumbnailMissing(false); // Reset any missing-state
   }, [ad]);
 
@@ -140,7 +138,7 @@ export default function AdCard({ ad, refreshKey, onOpenGallery }) {
   useEffect(() => {
     async function fetchImageCount() {
       try {
-        const res = await fetch(`/api/image-count/${ad.ad_id}`);
+        const res = await apiFetch(`image-count/${ad.ad_id}`);
         const data = await res.json();
         setImageCount(data.count);
       } catch (err) {

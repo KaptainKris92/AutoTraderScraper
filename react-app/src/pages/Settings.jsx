@@ -3,6 +3,7 @@ import Slider from "rc-slider";
 import "rc-slider/assets/index.css";
 import Select from "react-select";
 import ScrapeProgressModal from "../components/ScrapeProgressModal";
+import { apiFetch } from "../utils/api";
 
 export default function Settings() {
   // Sidebar state
@@ -44,7 +45,7 @@ export default function Settings() {
                     className="text-sm bg-red-500 text-white px-2 py-1 rounded"
                     onClick={async (e) => {
                       e.stopPropagation(); // prevent li click
-                      await fetch(`/api/delete-search-profile/${p.id}`, {
+                      await apiFetch(`delete-search-profile/${p.id}`, {
                         method: "DELETE",
                       });
                       setProfiles((prev) => prev.filter((x) => x.id !== p.id));
@@ -60,7 +61,7 @@ export default function Settings() {
                     className="text-sm bg-green-600 text-white px-2 py-1 rounded"
                     onClick={async (e) => {
                       e.stopPropagation(); // prevent li click
-                      const res = await fetch(`/api/run-scraper/${p.id}`, {
+                      const res = await apiFetch(`run-scraper/${p.id}`, {
                         method: "POST",
                       });
                       const data = await res.json();
@@ -112,7 +113,7 @@ export default function Settings() {
       gearbox: formData.transmission.join(","),
     };
 
-    const res = await fetch("/api/generate-search-url", {
+    const res = await apiFetch("generate-search-url", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -154,7 +155,7 @@ export default function Settings() {
       generated_url: url,
     };
 
-    const res = await fetch("/api/save-search-profile", {
+    const res = await apiFetch("save-search-profile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -563,7 +564,7 @@ export default function Settings() {
   };
 
   const fetchProfiles = async () => {
-    const res = await fetch("/api/search-profiles");
+    const res = await apiFetch("search-profiles");
     const data = await res.json();
     setProfiles(data.profiles);
   };
@@ -575,7 +576,7 @@ export default function Settings() {
   // Changes inputs to loaded profile when clicked
   const loadProfileIntoForm = async (id) => {
     try {
-      const res = await fetch(`/api/search-profile/${id}`);
+      const res = await apiFetch(`search-profile/${id}`);
       const data = await res.json();
 
       if (res.ok && data.params) {
