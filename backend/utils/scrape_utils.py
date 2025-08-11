@@ -43,9 +43,20 @@ IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def create_stealth_driver(headless=True, url=None):
-    chrome_path = shutil.which("chromium") or shutil.which(
-        "google-chrome") or shutil.which("chrome")
+    # Try env override first, then common names
+    chrome_candidates = [
+        os.getenv("CHROME_BIN"),
+        "chromium",
+        "chromium-browser",
+        "google-chrome",
+        "google-chrome-stable",
+        "chrome",
+    ]
+    chrome_path = next(
+        (p for name in chrome_candidates if name and (p := shutil.which(name))), None)
     driver_path = shutil.which("chromedriver")
+
+    print(f"[selenium] chromium={chrome_path} chromedriver={driver_path}")
 
     if not chrome_path:
         raise RuntimeError("Chromium/Chrome not found on PATH.")
@@ -60,13 +71,15 @@ def create_stealth_driver(headless=True, url=None):
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
-    options.add_argument("--log-level-3")  # Suppresses all but fatal logs
+    options.add_argument("--log-level=3")
     options.add_argument("--disable-logging")
     options.add_argument("--disable-software-rasterizer")
     options.add_argument(
         "--disable-features=UseModernMediaControls,SyncService")
     options.add_argument("--disable-gl-drawing-for-tests")
-    options.add_experimental_option("excludeSwitches", ["enable-logging"])
+    options.add_experimental_option(
+        "excludeSwitches", ["enable-logging", "enable-automation"])
+    options.add_experimental_option("useAutomationExtension", False)
     options.binary_location = chrome_path
 
     service = Service(driver_path)
