@@ -26,4 +26,5 @@ RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 COPY backend/ /app/backend/
 
 WORKDIR /app/backend
-CMD ["python3", "boot.py"]
+# Use absolute path to the interpreter inside the official Python image
+ENTRYPOINT ["/usr/local/bin/python3", "/app/backend/boot.py"]
