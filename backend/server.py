@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory, Response
+from flask import Flask, request, jsonify, send_from_directory, Response, after_this_request, send_file
 from flask_cors import CORS
 import utils.database_utils as db
 from utils.mot_history import get_mot_history
@@ -142,14 +142,14 @@ def diag_python():
 def _backup_sqlite(src_path: Path, dst_path: Path):
     dst_path.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(str(src_path)) as src, sqlite3.connect(str(dst_path)) as dst:
-        src.backup(dst)  # consistent snapshot even while app is running
+        src.backup(dst)  # Consistent snapshot even while app is running
 
 
 @app.route("/api/admin/download-db", methods=["GET"])
-@require_basic_auth   # you already have this decorator
+@require_basic_auth
 def download_db():
     data_dir = Path(app.config.get("DATA_DIR", "./data"))
-    db_path = data_dir / "autoscraper.db"   # or whatever your DB file is named
+    db_path = data_dir / "autoscraper.db"
     if not db_path.exists():
         return jsonify({"error": "DB file not found"}), 404
 
