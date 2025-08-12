@@ -1,4 +1,4 @@
-[setup]
+[phases.setup]
 nixPkgs = [
     "chromium",
     "chromedriver",

@@ -105,17 +105,34 @@ def health():
 def diag_python():
     import sys
     import os
+    import shutil
+    import subprocess
+
     info = {
         "cwd": os.getcwd(),
         "sys_path_0": sys.path[0],
         "env_PYTHONPATH": os.getenv("PYTHONPATH"),
     }
-    try:
-        import numpy
-        info["numpy_file"] = getattr(numpy, "__file__", "unknown")
-        info["numpy_version"] = getattr(numpy, "__version__", "unknown")
-    except Exception as e:
-        info["numpy_error"] = str(e)
+
+    info["PATH"] = os.environ.get("PATH")
+    info["chromium_path"] = shutil.which(
+        "chromium") or shutil.which("chromium-browser")
+    info["chromedriver_path"] = shutil.which("chromedriver")
+    for cmd in ["chromium", "chromium-browser", "chromedriver"]:
+        p = shutil.which(cmd)
+        if p:
+            try:
+                info[f"{cmd}_version"] = subprocess.check_output(
+                    [p, "--version"], text=True, timeout=5).strip()
+            except Exception as e:
+                info[f"{cmd}_version_error"] = str(e)
+
+    # try:
+    #     import numpy
+    #     info["numpy_file"] = getattr(numpy, "__file__", "unknown")
+    #     info["numpy_version"] = getattr(numpy, "__version__", "unknown")
+    # except Exception as e:
+    #     info["numpy_error"] = str(e)
     return jsonify(info)
 
 
@@ -483,9 +500,9 @@ def delete_search_profile(profile_id):
     return jsonify({"message": "Profile and associated as deleted successfully"}), 200
 
 
-print("Registered routes:")
-for r in app.url_map.iter_rules():
-    print(f"  {r.rule}  methods={sorted(r.methods)}")
+# print("Registered routes:")
+# for r in app.url_map.iter_rules():
+#     print(f"  {r.rule}  methods={sorted(r.methods)}")
 
 
 # --- Local dev only ------------------------------------------------
