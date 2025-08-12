@@ -2,6 +2,4 @@
 builder = "nixpacks"                 # ensure Nixpacks is the builder
 nixpacksConfigPath = "nixpacks.toml" # optional, but fine to keep
 
-# ✅ Force the Nix packages even if nixpacks.toml is ignored
-[build.nixpacksPlan.phases.setup]
-nixPkgs = ["chromium", "chromedriver", "nss", "fontconfig", "freetype"]
+
