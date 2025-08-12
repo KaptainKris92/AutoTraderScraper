@@ -43,17 +43,16 @@ IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def create_stealth_driver(headless=True, url=None):
-    # Try env override first, then common names
-    chrome_path = (
-        os.getenv("CHROME_BIN")
-        or os.getenv("CHROMIUM_PATH")
-        or shutil.which("chromium")
-        or shutil.which("google-chrome")
-        or shutil.which("chrome")
-    )
+    print(f"[selenium] PATH={os.environ.get('PATH')}")
+    chrome_candidates = [
+        os.getenv("CHROME_BIN"),
+        os.getenv("CHROMIUM_PATH"),
+        "chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "chrome",
+    ]
+    chrome_path = next(
+        (p for name in chrome_candidates if name and (p := shutil.which(name))), None)
     driver_path = os.getenv(
         "CHROMEDRIVER_PATH") or shutil.which("chromedriver")
-
     print(f"[selenium] chromium={chrome_path} chromedriver={driver_path}")
 
     if not chrome_path:

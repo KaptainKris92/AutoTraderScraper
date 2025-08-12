@@ -1,5 +1,4 @@
-# nixpacks.toml
-[phases.setup]
+[setup]
 nixPkgs = [
     "chromium",
     "chromedriver",
@@ -18,4 +17,3 @@ nixPkgs = [
     "fontconfig",
     "zlib"
 ]
-
