@@ -26,4 +26,4 @@ RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 COPY backend/ /app/backend/
 
 WORKDIR /app/backend
-CMD ["python", "boot.py"]
+CMD ["python3", "boot.py"]
