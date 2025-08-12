@@ -1,5 +1,0 @@
-[build]
-builder = "nixpacks"                 # ensure Nixpacks is the builder
-nixpacksConfigPath = "nixpacks.toml" # optional, but fine to keep
-
-
