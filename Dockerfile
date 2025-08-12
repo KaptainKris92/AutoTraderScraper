@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV CHROME_BIN=/usr/bin/chromium
 ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
 
-# App deps
+# Python deps
 WORKDIR /app
 COPY backend/requirements.txt /app/backend/requirements.txt
 RUN pip install --no-cache-dir -r /app/backend/requirements.txt
@@ -26,5 +26,4 @@ RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 COPY backend/ /app/backend/
 
 WORKDIR /app/backend
-# Use PORT provided by Railway
-CMD ["sh", "-c", "gunicorn server:app --bind 0.0.0.0:${PORT} --workers 2 --timeout 120"]
+CMD ["python", "boot.py"]
