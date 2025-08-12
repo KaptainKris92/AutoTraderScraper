@@ -5,7 +5,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# System deps + headless Chromium & Chromedriver
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium chromium-driver \
     fonts-liberation libnss3 libxss1 libasound2 \
@@ -13,18 +12,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxkbcommon0 libgbm1 libpango-1.0-0 libgtk-3-0 \
  && rm -rf /var/lib/apt/lists/*
 
-# Tell Selenium exactly where they are
 ENV CHROME_BIN=/usr/bin/chromium
 ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
 
-# Python deps
 WORKDIR /app
 COPY backend/requirements.txt /app/backend/requirements.txt
-RUN pip install --no-cache-dir -r /app/backend/requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir -r /app/backend/requirements.txt \
+ && python3 -c "import gunicorn,sys; print('gunicorn', gunicorn.__version__)"
 
-# App code
 COPY backend/ /app/backend/
 
 WORKDIR /app/backend
-# Use absolute path to the interpreter inside the official Python image
 ENTRYPOINT ["/usr/local/bin/python3", "/app/backend/boot.py"]
