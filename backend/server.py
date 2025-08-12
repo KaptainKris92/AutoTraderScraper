@@ -9,7 +9,10 @@ from utils.image_ocr import ocr_reg_plate_single
 import threading
 import time
 import os
+import sqlite3
 from functools import wraps
+from pathlib import Path
+
 
 app = Flask(__name__)
 # config.py contains DATA_DIR, UPLOAD_DIR, THUMBNAIL_DIR, etc.
@@ -135,6 +138,40 @@ def diag_python():
     #     info["numpy_error"] = str(e)
     return jsonify(info)
 
+
+def _backup_sqlite(src_path: Path, dst_path: Path):
+    dst_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(str(src_path)) as src, sqlite3.connect(str(dst_path)) as dst:
+        src.backup(dst)  # consistent snapshot even while app is running
+
+
+@app.route("/api/admin/download-db", methods=["GET"])
+@require_basic_auth   # you already have this decorator
+def download_db():
+    data_dir = Path(app.config.get("DATA_DIR", "./data"))
+    db_path = data_dir / "autoscraper.db"   # or whatever your DB file is named
+    if not db_path.exists():
+        return jsonify({"error": "DB file not found"}), 404
+
+    ts = time.strftime("%Y%m%d-%H%M%S")
+    tmp_path = Path("/tmp") / f"autoscraper-backup-{ts}.db"
+    _backup_sqlite(db_path, tmp_path)
+
+    @after_this_request
+    def _cleanup(response):
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except:
+            pass
+        return response
+
+    return send_file(
+        tmp_path,
+        as_attachment=True,
+        download_name=f"autoscraper-{ts}.db",
+        mimetype="application/octet-stream",
+        max_age=0,
+    )
 
 #### ADS ####
 
@@ -503,7 +540,7 @@ def delete_search_profile(profile_id):
 # print("Registered routes:")
 # for r in app.url_map.iter_rules():
 #     print(f"  {r.rule}  methods={sorted(r.methods)}")
-
+\
 
 # --- Local dev only ------------------------------------------------
 if __name__ == '__main__':
