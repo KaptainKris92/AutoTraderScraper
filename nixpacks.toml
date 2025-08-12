@@ -1,4 +1,5 @@
-[setup]
+# nixpacks.toml
+[phases.setup]
 nixPkgs = [
     "chromium",
     "chromedriver",
@@ -17,3 +18,15 @@ nixPkgs = [
     "fontconfig",
     "zlib"
 ]
+
+
+[phases.install]
+commands = [
+  "python -m venv --copies /opt/venv",
+  ". /opt/venv/bin/activate",
+  # point at the correct file in backend:
+  "pip install -r backend/requirements.txt"
+]
+
+[phases.start]
+cmd = "cd backend && gunicorn server:app --bind 0.0.0.0:${PORT} --workers 2 --timeout 120"
