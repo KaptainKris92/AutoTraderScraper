@@ -163,7 +163,7 @@ def scrape_autotrader(
         ) from exc
 
     if status_callback:
-        status_callback(f"Loading ads for up to {max_scrolls} scrolls")
+        status_callback("Loading all available listings...")
 
     # Scroll to bottom until no new content appears (stop at MAX_SCROLLS)
     scroll_pause_time = 2.5
@@ -227,14 +227,6 @@ def scrape_autotrader(
 
         # Add to live_ads to avoid deleting existing ads that have been skipped
         live_ad_ids.add(ad_id)
-
-        # Check if ad already exists in DB
-        ad_exists = check_ad_id_exists(ad_id, TABLE_NAME)
-
-        # Skip saving ad if it already exists
-        if ad_exists:
-            print(f"🟡 Ad {ad_id} already in DB — skipping full scrape.")
-            continue
 
         # Evaluate thumbnail
         thumb_url = safe_find("img", "src") or safe_find("img", "data-src")
@@ -315,46 +307,10 @@ def scrape_autotrader(
 
     df = pd.DataFrame(car_data).drop_duplicates(subset="ad_id")
 
-    # Remove any ads no longer listed
-    saved_ad_ids = set(ad["ad_id"] for ad in load_ads(TABLE_NAME, search_id=search_id))
-    to_remove = saved_ad_ids - live_ad_ids
-
-    if to_remove:
-        print(f"🗑️ Removing {len(to_remove)} ads no longer listed.")
-
-        if status_callback:
-            status_callback(f"Removing {len(to_remove)}ads that have been unlisted.")
-        delete_ads_by_ad_id(to_remove, TABLE_NAME)
-
-        # Remove associated thumbnail and image folders
-        for ad_id in to_remove:
-            if abort_event and abort_event.is_set():
-                break
-
-            thumb = Path("thumbnails") / f"{ad_id}.jpg"
-            image_folder = Path("images") / ad_id
-
-            if thumb.exists():
-                thumb.unlink(missing_ok=True)
-                if status_callback:
-                    status_callback(f"Deleted thumbnail for {ad_id}")
-                print(f"🗑️ Deleted thumbnail for {ad_id}")
-
-            if image_folder.exists():
-                for file in image_folder.glob("*"):
-                    file.unlink()
-                image_folder.rmdir()
-                if status_callback:
-                    status_callback(f"Deleted image folder for {ad_id}")
-                print(f"🗑️ Deleted image folder for {ad_id}")
-
     if save_to_excel:
         file_path = DATA_DIR / f"cars_{datetime.now().date()}.xlsx"
         df.to_excel(file_path, index=False)
         print(f"Saved {len(df)} listings to {file_path}")
-
-    if status_callback:
-        status_callback("Complete.")
 
     if search_id:
         update_search_profile_timestamp(search_id)
@@ -438,7 +394,6 @@ def download_pictures(ad_id, ad_url, progress_callback=None):
     if progress_callback:
         progress_callback("Launching browser...")
     driver = create_stealth_driver(headless=True, url=ad_url)
-    
 
     if progress_callback:
         progress_callback("Rejecting cookies...")

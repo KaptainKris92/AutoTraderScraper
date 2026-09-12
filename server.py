@@ -16,6 +16,7 @@ from utils.database_utils import (
     save_ads_data,
     delete_profile,
     delete_ads_by_search_id,
+    sync_search_profile_ads,
 )
 from utils.mot_history import get_mot_history
 from utils.scrape_utils import download_pictures, check_caz, scrape_autotrader
@@ -478,10 +479,16 @@ def run_scraper(profile_id):
 
             df["search_id"] = search_id
 
-            update_status(f"Saving {len(df)} new ads to database...")
+            update_status(f"Saving {len(df)} matching ads...")
+
             save_ads_data(df, TABLE_NAME)
 
-            terminal_status = f"Complete. {len(df)} new ads found."
+            sync_search_profile_ads(
+                search_id,
+                df["ad_id"].tolist(),
+            )
+
+            terminal_status = f"Complete. {len(df)} ads linked to this profile."
 
         except Exception as exc:
             app.logger.exception(
