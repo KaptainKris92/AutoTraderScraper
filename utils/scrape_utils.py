@@ -51,9 +51,9 @@ def create_stealth_driver(headless=True, url=AUTOTRADER_URL):
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--log-level-3")  # Suppresses all but fatal logs
     options.add_argument("--disable-logging")
-    options.add_argument("--disable-software-rasterizer")
+    # options.add_argument("--disable-software-rasterizer")
     options.add_argument("--disable-features=UseModernMediaControls,SyncService")
-    options.add_argument("--disable-gl-drawing-for-tests")
+    # options.add_argument("--disable-gl-drawing-for-tests")
     options.add_experimental_option("excludeSwitches", ["enable-logging"])
 
     service = Service(ChromeDriverManager().install(), log_path=os.devnull)
@@ -438,10 +438,11 @@ def download_pictures(ad_id, ad_url, progress_callback=None):
     if progress_callback:
         progress_callback("Launching browser...")
     driver = create_stealth_driver(headless=True, url=ad_url)
+    
 
     if progress_callback:
         progress_callback("Rejecting cookies...")
-    reject_cookies(driver)
+    reject_cookies(driver, timeout=3)
 
     try:
         if progress_callback:
@@ -450,11 +451,68 @@ def download_pictures(ad_id, ad_url, progress_callback=None):
         time.sleep(1)
 
         # Click a thumbnail on ad page instead of the 'View gallery' button
-        thumb = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable(
-                (By.CSS_SELECTOR, "button[data-testid^='open-carousel']")
-            )
+        gallery_selectors = [
+            "button[data-testid*='carousel']",
+            "button[data-testid*='gallery']",
+            "[data-testid*='gallery'] button",
+            "button[aria-label*='image' i]",
+            "button[aria-label*='photo' i]",
+        ]
+
+        thumb = None
+
+        for selector in gallery_selectors:
+            try:
+                thumb = WebDriverWait(driver, 2).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+                )
+                print(f"✅ Found gallery control with selector: {selector}")
+                break
+            except Exception:
+                continue
+
+        # Fall back to finding an image and its clickable parent.
+        if thumb is None:
+            images = driver.find_elements(By.CSS_SELECTOR, "main img, picture img")
+
+            for image in images:
+                clickable = driver.execute_script(
+                    """
+                    return arguments[0].closest(
+                        'button, a, [role="button"]'
+                    );
+                    """,
+                    image,
+                )
+
+                if clickable:
+                    thumb = clickable
+                    print("✅ Found gallery control via clickable image.")
+                    break
+        test_ids = driver.execute_script(
+            """
+            return [...document.querySelectorAll('[data-testid]')]
+                .map(el => ({
+                    tag: el.tagName,
+                    testid: el.getAttribute('data-testid'),
+                    aria: el.getAttribute('aria-label')
+                }))
+                .filter(x =>
+                    /image|photo|gallery|carousel/i.test(
+                        `${x.testid || ''} ${x.aria || ''}`
+                    )
+                );
+            """
         )
+
+        print("🔎 Gallery-related elements found:")
+        for item in test_ids:
+            print(item)
+
+        if thumb is None:
+            raise RuntimeError(
+                "Could not find a gallery control on the AutoTrader advert page."
+            )
         driver.execute_script(
             "arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", thumb
         )
@@ -482,44 +540,23 @@ def download_pictures(ad_id, ad_url, progress_callback=None):
             f"Screenshot saved to {screenshot_path}."
         ) from exc
 
-    # Extract image URLs
+    # Extract AutoTrader image URLs from the rendered page.
     try:
         if progress_callback:
             progress_callback("Extracting image URLs...")
 
-        # Wait for modal to load
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='dialog'] img"))
-        )
+        time.sleep(1)
 
-        time.sleep(1)  # Ensure images fully render
+        candidate_urls = []
 
-        srcset_urls = []
-
-        source_elements = driver.find_elements(
+        # Current rendered <img> and <source> elements.
+        elements = driver.find_elements(
             By.CSS_SELECTOR,
-            "[role='dialog'] source[srcset]",
+            "img[src], img[srcset], source[srcset]",
         )
 
-        for element in source_elements:
-            srcset = element.get_attribute("srcset")
-
-            if not srcset:
-                continue
-
-            for candidate in srcset.split(","):
-                url = candidate.strip().split()[0]
-
-                if "atcdn.co.uk" in url or "/media/" in url:
-                    srcset_urls.append(url)
-
-        image_elements = driver.find_elements(
-            By.CSS_SELECTOR,
-            "[role='dialog'] img",
-        )
-
-        for element in image_elements:
-            for attr in ("srcset", "src"):
+        for element in elements:
+            for attr in ("src", "srcset"):
                 value = element.get_attribute(attr)
 
                 if not value:
@@ -528,34 +565,57 @@ def download_pictures(ad_id, ad_url, progress_callback=None):
                 for candidate in value.split(","):
                     url = candidate.strip().split()[0]
 
-                    if "atcdn.co.uk" in url or "/media/" in url:
-                        srcset_urls.append(url)
+                    if "m.atcdn.co.uk/a/media/" in url:
+                        candidate_urls.append(url)
 
-        img_urls = extract_highest_res_images(srcset_urls)
+        # AutoTrader also embeds media URLs in the page's application data.
+        page_source = driver.page_source.replace("\\/", "/").replace("&amp;", "&")
 
-        img_urls = extract_highest_res_images(srcset_urls)
+        embedded_urls = re.findall(
+            r"https://m\.atcdn\.co\.uk/a/media/"
+            r"(?:w\d+|\{resize\})/"
+            r"[a-f0-9]+\.jpg",
+            page_source,
+            flags=re.IGNORECASE,
+        )
 
-        if progress_callback:
-            progress_callback(0, len(img_urls))
+        candidate_urls.extend(embedded_urls)
+
+        # Convert every URL to a consistent high-resolution URL and deduplicate
+        # by image ID while preserving order.
+        img_urls = []
+        seen_ids = set()
+
+        for url in candidate_urls:
+            match = re.search(
+                r"/([a-f0-9]+)\.jpg(?:\?|$)",
+                url,
+                flags=re.IGNORECASE,
+            )
+
+            if not match:
+                continue
+
+            image_id = match.group(1).lower()
+
+            if image_id in seen_ids:
+                continue
+
+            seen_ids.add(image_id)
+
+            img_urls.append(f"https://m.atcdn.co.uk/a/media/w1200/{image_id}.jpg")
+
+        print(f"📸 Found {len(img_urls)} unique AutoTrader images.")
 
         if not img_urls:
-            print("⚠️ No modal image URLs found, falling back to thumbnails.")
-            thumb_elements = driver.find_elements(
-                By.CSS_SELECTOR, "img.ImageGalleryImage__image"
-            )
-            img_urls = list(
-                {
-                    img.get_attribute("src")
-                    for img in thumb_elements
-                    if img.get_attribute("src") and "media" in img.get_attribute("src")
-                }
+            raise RuntimeError(
+                "No AutoTrader image URLs were found on the advert page."
             )
 
     except Exception as exc:
         driver.quit()
-
         raise RuntimeError(
-            "Could not extract image URLs from the AutoTrader gallery."
+            "Could not extract image URLs from the AutoTrader advert."
         ) from exc
 
     total_images = len(img_urls)
