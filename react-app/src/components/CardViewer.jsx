@@ -15,7 +15,7 @@ export default function CardViewer({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showMOTModal, setShowMOTModal] = useState(false);
   const [showFavouritesOnly, setShowFavouritesOnly] = useState(false);
-  
+
   const [refreshKey, setRefreshKey] = useState(Date.now());
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryReady, setGalleryReady] = useState(false);
@@ -34,7 +34,7 @@ export default function CardViewer({
     if (currentIndex > 0) setCurrentIndex((i) => i - 1);
   };
 
-  const handleOpenGallery = async() => {
+  const handleOpenGallery = async () => {
     setGalleryOpen(true);
     setGalleryReady(false);
 
@@ -63,22 +63,40 @@ export default function CardViewer({
       }
 
       // Poll for readiness
-      let tries = 0;
-      while (tries < 20) {
-        const pollRes = await fetch(`/api/image-count/${currentAd.ad_id}`);
-        const { count: currentCount } = await pollRes.json();
-        if (currentCount > 0) {
+      const MAX_TRIES = 240; // 2 minutes at 500 ms
+
+      for (let tries = 0; tries < MAX_TRIES; tries++) {
+        const [countRes, progressRes] = await Promise.all([
+          fetch(`/api/image-count/${currentAd.ad_id}`),
+          fetch(`/api/download-progress/${currentAd.ad_id}`),
+        ]);
+
+        const { count } = await countRes.json();
+        const { status } = await progressRes.json();
+
+        if (count > 0) {
           setGalleryReady(true);
           return;
         }
-        await new Promise((r) => setTimeout(r, 500));
-        tries++;
+
+        if (status?.startsWith("Error:")) {
+          throw new Error(status.replace(/^Error:\s*/, ""));
+        }
+
+        if (status === "Complete." && count === 0) {
+          throw new Error(
+            "Gallery download completed without finding any images."
+          );
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
-      alert("No images found.");
+
+      throw new Error("Timed out waiting for gallery images.");
       setGalleryOpen(false);
     } catch (err) {
       console.error("Failed to open gallery:", err);
-      alert("Failed to load gallery images.");
+      alert(`Failed to load gallery images: ${err.message}`);
       setGalleryOpen(false);
     }
   }
@@ -291,8 +309,8 @@ export default function CardViewer({
             adId={currentAd.ad_id}
             onClose={() => setGalleryOpen(false)}
             onImageChange={(img) => {
-              updateAdThumbnail(currentAd.ad_id, img); 
-              setGalleryOpen(false); 
+              updateAdThumbnail(currentAd.ad_id, img);
+              setGalleryOpen(false);
             }}
             ready={galleryReady}
             onRegConfirmed={() => setRefreshKey(Date.now())}

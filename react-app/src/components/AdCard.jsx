@@ -197,13 +197,18 @@ export default function AdCard({ ad, refreshKey, onOpenGallery }) {
             </a>
           )}
           {/* Quick reg input overlay */}
-          <div className="absolute bottom-1 left-1 right-1 bg-white/80 p-1 flex gap-2 items-center justify-center rounded shadow-md">
+          <div className="absolute bottom-1 left-1 right-1 z-20 bg-white/80 p-1 flex gap-2 items-center justify-center rounded shadow-md">
             <input
               type="text"
               placeholder="Enter Reg"
               value={regInput}
               onChange={(e) => setRegInput(e.target.value.toUpperCase())}
-              className="text-xs text-center border p-1 rounded w-24"
+              className="text-base text-center border p-2 rounded w-28"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="search"
+              maxLength={8}
             />
             <button
               onClick={handleQuickSearch}
