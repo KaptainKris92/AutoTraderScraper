@@ -75,32 +75,44 @@ def create_stealth_driver(headless=True, url=AUTOTRADER_URL):
     return driver
 
 
-def reject_cookies(driver, timeout=15):
-    try:
-        # Wait for iframe containing the cookie modal
-        WebDriverWait(driver, timeout).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "iframe[src*='consent']"))
-        )
-        iframe = driver.find_element(By.CSS_SELECTOR, "iframe[src*='consent']")
-        driver.switch_to.frame(iframe)
+def reject_cookies(driver, timeout=5):
+    """Dismiss AutoTrader cookie consent if it is shown."""
 
-        # Wait for the Reject All button inside the iframe
-        WebDriverWait(driver, timeout).until(
-            EC.element_to_be_clickable(
-                (By.XPATH, "//button[contains(text(), 'Reject All')]")
-            )
-        )
-        reject_button = driver.find_element(
-            By.XPATH, "//button[contains(text(), 'Reject All')]"
-        )
-        driver.execute_script("arguments[0].click();", reject_button)
-        print("✅ Clicked 'Reject All' cookie button inside iframe.")
+    xpaths = [
+        "//button[contains(normalize-space(.), 'Essential Cookies Only')]",
+        "//button[contains(normalize-space(.), 'Reject All')]",
+    ]
 
-        # Important: switch back to main content
-        driver.switch_to.default_content()
+    def try_click():
+        for xpath in xpaths:
+            for button in driver.find_elements(By.XPATH, xpath):
+                if button.is_displayed():
+                    driver.execute_script("arguments[0].click();", button)
+                    print(f"✅ Clicked cookie button: {button.text}")
+                    time.sleep(0.5)
+                    return True
 
-    except Exception as e:
-        print("⚠️ Failed to handle cookie popup:", e)
+        return False
+
+    deadline = time.time() + timeout
+
+    # Current AutoTrader popup: main document.
+    while time.time() < deadline:
+        if try_click():
+            return
+        time.sleep(0.25)
+
+    # Older AutoTrader popup: iframe.
+    for iframe in driver.find_elements(By.TAG_NAME, "iframe"):
+        try:
+            driver.switch_to.frame(iframe)
+
+            if try_click():
+                return
+        finally:
+            driver.switch_to.default_content()
+
+    print("ℹ️ No cookie popup found.")
 
 
 # %% AutoTrader ads
@@ -167,19 +179,45 @@ def scrape_autotrader(
 
     # Scroll to bottom until no new content appears (stop at MAX_SCROLLS)
     scroll_pause_time = 2.5
+    stable_scrolls = 0
+    max_seen = len(
+        driver.find_elements(
+            By.CSS_SELECTOR,
+            LISTING_CARD_SELECTOR,
+        )
+    )
+    started_at = time.monotonic()
 
     for i in range(max_scrolls):
         if abort_event and abort_event.is_set():
             break
 
+        if time.monotonic() - started_at > 180:
+            raise RuntimeError("Timed out while loading AutoTrader listings.")
+
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-
-        prev_count = len(driver.find_elements(By.CSS_SELECTOR, LISTING_CARD_SELECTOR))
         time.sleep(scroll_pause_time)
-        new_count = len(driver.find_elements(By.CSS_SELECTOR, LISTING_CARD_SELECTOR))
 
-        if new_count == prev_count:
-            print(f"🔄 No new listings detected after scroll #{i + 1}. Stopping.")
+        new_count = len(
+            driver.find_elements(
+                By.CSS_SELECTOR,
+                LISTING_CARD_SELECTOR,
+            )
+        )
+
+        if new_count > max_seen:
+            max_seen = new_count
+            stable_scrolls = 0
+        else:
+            stable_scrolls += 1
+
+        if status_callback:
+            status_callback(f"Loading listings... {max_seen} found (scroll {i + 1})")
+
+        if stable_scrolls >= 2:
+            print(
+                f"🔄 No additional listings after {stable_scrolls} scrolls. Stopping."
+            )
             break
 
     listings = driver.find_elements(By.CSS_SELECTOR, LISTING_CARD_SELECTOR)

@@ -464,9 +464,14 @@ def run_scraper(profile_id):
                 url,
                 search_id=search_id,
                 save_to_excel=False,
-                max_scrolls=9_999_999,
+                max_scrolls=1_000,
                 status_callback=update_status,
                 abort_event=abort_event,
+            )
+
+            print(
+                f"✅ Scraper returned {len(df)} ads "
+                f"for profile {search_id}"
             )
 
             if abort_event.is_set():
@@ -486,6 +491,11 @@ def run_scraper(profile_id):
             sync_search_profile_ads(
                 search_id,
                 df["ad_id"].tolist(),
+            )
+
+            print(
+                f"✅ Synced {len(df)} ads "
+                f"to profile {search_id}"
             )
 
             terminal_status = f"Complete. {len(df)} ads linked to this profile."
