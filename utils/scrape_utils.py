@@ -30,6 +30,7 @@ AUTOTRADER_URL = 'https://www.autotrader.co.uk/car-search?maximum-mileage=125000
 DEFAULT_MAX_SCROLLS = 1  # Maybe default should be all ads possible?
 TABLE_NAME = 'ads'
 DATA_DIR = Path('data')
+LISTING_CARD_SELECTOR = "[data-testid^='advertCard']"
 
 # %% General scraping functions
 # ------------------
@@ -127,12 +128,26 @@ def scrape_autotrader(url, search_id=None, save_to_excel=True, max_scrolls=DEFAU
     try:
         WebDriverWait(driver, 15).until(
             EC.presence_of_element_located(
-                (By.CSS_SELECTOR, "div[data-testid='advertCard']"))
+                (By.CSS_SELECTOR, LISTING_CARD_SELECTOR)
+            )
         )
-    except:
-        print("Couldn't find any listings.")
+    except Exception as exc:
+        screenshot_dir = Path("screenshots")
+        screenshot_dir.mkdir(parents=True, exist_ok=True)
+
+        screenshot_path = (
+            screenshot_dir
+            / f"scrape_no_listings_{search_id or 'unknown'}.png"
+        )
+        driver.save_screenshot(str(screenshot_path))
         driver.quit()
-        return
+
+        raise RuntimeError(
+            "No AutoTrader listing cards were found. "
+            "The search may have no results, AutoTrader may have changed its "
+            "markup, or the browser may have been blocked. "
+            f"Screenshot saved to {screenshot_path}."
+        ) from exc
 
     if status_callback:
         status_callback(f"Loading ads for up to {max_scrolls} scrolls")
@@ -148,17 +163,17 @@ def scrape_autotrader(url, search_id=None, save_to_excel=True, max_scrolls=DEFAU
             "window.scrollTo(0, document.body.scrollHeight);")
 
         prev_count = len(driver.find_elements(
-            By.CSS_SELECTOR, "div[data-testid='advertCard']"))
+            By.CSS_SELECTOR, LISTING_CARD_SELECTOR))
         time.sleep(scroll_pause_time)
         new_count = len(driver.find_elements(
-            By.CSS_SELECTOR, "div[data-testid='advertCard']"))
+            By.CSS_SELECTOR, LISTING_CARD_SELECTOR))
 
         if new_count == prev_count:
             print(f"🔄 No new listings detected after scroll #{i+1}. Stopping.")
             break
 
     listings = driver.find_elements(
-        By.CSS_SELECTOR, "div[data-testid='advertCard']")
+        By.CSS_SELECTOR, LISTING_CARD_SELECTOR)
 
     total_listings = len(listings)
     print(f"Found {total_listings} listings.")
@@ -211,7 +226,10 @@ def scrape_autotrader(url, search_id=None, save_to_excel=True, max_scrolls=DEFAU
             continue
 
         # Evaluate thumbnail
-        thumb_url = safe_find("img.main-image", "src")
+        thumb_url = (
+            safe_find("img", "src")
+            or safe_find("img", "data-src")
+        )
         thumb_path = Path("thumbnails") / f"{ad_id}.jpg"
 
         if thumb_url:
@@ -233,7 +251,9 @@ def scrape_autotrader(url, search_id=None, save_to_excel=True, max_scrolls=DEFAU
 
         title = safe_find("[data-testid='search-listing-title']")
         subtitle = safe_find("[data-testid='search-listing-subtitle']")
-        price = safe_find("div[class*='at__sc-u4ap7c-12'] span")
+
+        price_match = re.search(r"£[\d,]+", title)
+        price = price_match.group(0) if price_match else ""
         mileage_raw = safe_find("[data-testid='mileage']")
         reg_year = safe_find("[data-testid='registered_year']")
         location = safe_find("[data-testid='search-listing-location']")

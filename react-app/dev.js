@@ -8,6 +8,12 @@ const PORT = 5173;
   let listener;
 
   try {
+    if (!process.env.NGROK_AUTHTOKEN) {
+      throw new Error(
+        "NGROK_AUTHTOKEN is missing. Add it to the repository-root .env file.",
+      );
+    }
+
     listener = await ngrok.forward({
       addr: PORT,
       authtoken_from_env: true,

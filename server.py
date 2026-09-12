@@ -378,6 +378,13 @@ def run_scraper(profile_id):
     if not profile:
         return jsonify({"error": "Profile not found"}), 404
 
+    existing_thread = scrape_threads.get(profile_id)
+
+    if existing_thread and existing_thread.is_alive():
+        return jsonify({
+            "error": "A scrape is already running for this profile."
+        }), 409
+
     url = profile.get('url')
     search_id = profile.get('id')
 
@@ -390,29 +397,66 @@ def run_scraper(profile_id):
         scrape_progress[profile_id] = {"status": status}
 
     def run():
+        terminal_status = "Error: scraper stopped unexpectedly."
+
         try:
             update_status("Launching browser...")
-            df = scrape_autotrader(url, search_id=search_id, max_scrolls=9_999_999, status_callback=update_status,
-                                   abort_event=abort_event)
+
+            df = scrape_autotrader(
+                url,
+                search_id=search_id,
+                save_to_excel=False,
+                max_scrolls=9_999_999,
+                status_callback=update_status,
+                abort_event=abort_event,
+            )
+
+            if abort_event.is_set():
+                terminal_status = "Cancelled."
+                return
 
             if df is None:
-                update_status("Scraping aborted.")
-            else:
-                df['search_id'] = search_id
-                update_status(f"Saving {len(df)} ads to database...")
-                save_ads_data(df, 'ads')
-                update_status(f"{len(df)} ads saved to the database.")
+                terminal_status = "Error: scraper returned no result."
+                return
+
+            df["search_id"] = search_id
+
+            update_status(
+                f"Saving {len(df)} new ads to database..."
+            )
+            save_ads_data(df, TABLE_NAME)
+
+            terminal_status = (
+                f"Complete. {len(df)} new ads found."
+            )
+
+        except Exception as exc:
+            app.logger.exception(
+                "Scraping failed for profile %s",
+                profile_id,
+            )
+            terminal_status = f"Error: {exc}"
 
         finally:
-            update_status("Complete.")
+            update_status(terminal_status)
 
             def cleanup():
-                time.sleep(3)  # Let frontend detect 'Complete.'
+                # Leave errors available long enough for the UI to display them.
+                delay = (
+                    30
+                    if terminal_status.startswith(("Error:", "Cancelled."))
+                    else 5
+                )
+                time.sleep(delay)
+
                 scrape_progress.pop(profile_id, None)
                 scrape_threads.pop(profile_id, None)
                 scrape_abort_flags.pop(profile_id, None)
 
-            threading.Thread(target=cleanup).start()
+            threading.Thread(
+                target=cleanup,
+                daemon=True,
+            ).start()
 
     thread = threading.Thread(target=run)
     thread.start()
