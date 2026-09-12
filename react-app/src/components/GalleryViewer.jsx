@@ -232,11 +232,11 @@ export default function GalleryViewer({
       console.error("Failed to confirm reg:", err);
       alert("Failed to fetch and bind MOT data.");
     } finally {
-      setMotLoading(true);
+      setMotLoading(false);
     }
   };
 
-  
+
 
   const handleQuickReg = async () => {
     const cleanReg = regInput.replace(/\s+/g, "").toUpperCase();
@@ -276,7 +276,7 @@ export default function GalleryViewer({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex flex-col items-center justify-center modal-open">
+    <div className="fixed inset-0 h-[100dvh] bg-black bg-opacity-90 z-50 flex flex-col items-center overflow-hidden modal-open">
       {ocrLoading && (
         <div className="absolute top-4 left-4 bg-white/90 px-4 py-2 rounded shadow-lg animate-pulse z-50">
           Searching for registration plate...
@@ -315,75 +315,92 @@ export default function GalleryViewer({
           <div
             id="gallery-container"
             ref={galleryRef}
-            className="flex items-center justify-center w-full h-full"
+            className="flex-1 min-h-0 w-full flex items-center justify-center p-2"
           >
             <div
               {...bind()}
-              className="w-full h-full flex items-center justify-center"
+              className="w-full h-full min-h-0 flex items-center justify-center"
             >
               <img
                 src={images[currentIndex]}
                 alt={`Image ${currentIndex + 1}`}
-                className="max-w-full max-h-[80vh] object-contain"
+                className="max-w-full max-h-full object-contain"
               />
             </div>
           </div>
 
-          {/* Quick Reg input + search */}
-          <div className="mt-4 flex gap-2 items-center justify-center">
-            <input
-              type="text"
-              placeholder="Enter Reg"
-              value={regInput}
-              onChange={(e) => setRegInput(e.target.value.toUpperCase())}
-              className="text-sm text-center border p-1 rounded w-28"
-            />
-            <button
-              onClick={handleQuickReg}
-              className="text-sm px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Search MOT
-            </button>
-          </div>
+          <div
+            className="shrink-0 w-full pb-[max(0.75rem,env(safe-area-inset-bottom))] px-3"
+          >
+            {/* Quick Reg input + search */}
+            <div className="mt-4 flex gap-2 items-center justify-center">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleQuickReg();
+                }}
+                className="flex gap-2 items-center justify-center"
+              >
+                <input
+                  type="text"
+                  placeholder="Enter Reg"
+                  value={regInput}
+                  onChange={(e) => setRegInput(e.target.value.toUpperCase())}
+                  className="text-base text-center border p-2 rounded w-32"
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  enterKeyHint="search"
+                  maxLength={8}
+                />
+                <button
+                  onClick={handleQuickReg}
+                  className="text-sm px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Search MOT
+                </button>
+              </form>
+            </div>
 
-          {/* OCR Button */}
-          <div className="mt-4 flex justify-center">
-            <button
-              onClick={handleOCRCheck}
-              className="bg-yellow-500 text-white px-4 py-2 rounded text-sm shadow"
-            >
-              Find reg in image
-            </button>
-          </div>
+            {/* OCR Button */}
+            <div className="mt-4 flex justify-center">
+              <button
+                onClick={handleOCRCheck}
+                className="bg-yellow-500 text-white px-4 py-2 rounded text-sm shadow"
+              >
+                Find reg in image
+              </button>
+            </div>
 
-          {/* Left and right buttons + image index */}
-          <div className="flex items-center gap-4 mt-4">
-            <button
-              onClick={handlePrev}
-              disabled={currentIndex === 0}
-              className="text-white text-xl"
-            >
-              ◀
-            </button>
+            {/* Left and right buttons + image index */}
+            <div className="flex items-center gap-4 mt-4">
+              <button
+                onClick={handlePrev}
+                disabled={currentIndex === 0}
+                className="text-white text-xl"
+              >
+                ◀
+              </button>
 
-            <input
-              type="number"
-              min={1}
-              max={images.length}
-              value={currentIndex + 1}
-              onChange={handleInput}
-              className="w-16 text-center rounded bg-gray-800 text-white"
-            />
+              <input
+                type="number"
+                min={1}
+                max={images.length}
+                value={currentIndex + 1}
+                onChange={handleInput}
+                className="w-16 text-center rounded bg-gray-800 text-white"
+              />
 
-            <span className="text-white">/ {images.length}</span>
+              <span className="text-white">/ {images.length}</span>
 
-            <button
-              onClick={handleNext}
-              disabled={currentIndex === images.length - 1}
-              className="text-white text-xl"
-            >
-              ▶
-            </button>
+              <button
+                onClick={handleNext}
+                disabled={currentIndex === images.length - 1}
+                className="text-white text-xl"
+              >
+                ▶
+              </button>
+            </div>
           </div>
         </>
       )}

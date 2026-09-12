@@ -158,9 +158,8 @@ export default function AdCard({ ad, refreshKey, onOpenGallery }) {
     <>
       {/* Main card container */}
       <div
-        className={`mx-auto bg-white rounded-2xl shadow-md overflow-hidden sm:rounded-xl sm:shadow-lg ${
-          thumbnailMissing ? "w-[640px]" : "w-full max-w-md"
-        }`}
+        className={`mx-auto bg-white rounded-2xl shadow-md overflow-hidden sm:rounded-xl sm:shadow-lg ${thumbnailMissing ? "w-[640px]" : "w-full max-w-md"
+          }`}
       >
         {/* Thumbnail image  + quick reg input */}
         <div className="relative w-full aspect-[4/3] bg-gray-100">
@@ -197,23 +196,23 @@ export default function AdCard({ ad, refreshKey, onOpenGallery }) {
               />
             </a>
           )}
-        </div>
+          {/* Quick reg input overlay */}
+          <div className="absolute bottom-1 left-1 right-1 bg-white/80 p-1 flex gap-2 items-center justify-center rounded shadow-md">
+            <input
+              type="text"
+              placeholder="Enter Reg"
+              value={regInput}
+              onChange={(e) => setRegInput(e.target.value.toUpperCase())}
+              className="text-xs text-center border p-1 rounded w-24"
+            />
+            <button
+              onClick={handleQuickSearch}
+              className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              <FaSearch />
+            </button>
+          </div>
 
-        {/* Quick reg input overlay */}
-        <div className="absolute bottom-1 left-1 right-1 bg-white/80 p-1 flex gap-2 items-center justify-center rounded shadow-md">
-          <input
-            type="text"
-            placeholder="Enter Reg"
-            value={regInput}
-            onChange={(e) => setRegInput(e.target.value.toUpperCase())}
-            className="text-xs text-center border p-1 rounded w-24"
-          />
-          <button
-            onClick={handleQuickSearch}
-            className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            <FaSearch />
-          </button>
         </div>
 
         <div className="p-4 space-y-2 text-center">

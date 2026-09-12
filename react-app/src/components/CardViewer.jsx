@@ -163,7 +163,7 @@ export default function CardViewer({
   // RETURN
   return (
     currentAd && (
-      <div className="relative min-h-screen flex flex-col items-center justify-start pt-2 pb-14">
+      <div className="relative w-full flex flex-col items-center justify-start pt-2 pb-2">
         {/* Filter favourites toggle, profile name, and ad index*/}
         <div className="flex items-center justify-between w-full max-w-2xl mb-2 px-4 text-sm text-gray-600">
           {/* Favourites checkbox */}
@@ -195,7 +195,7 @@ export default function CardViewer({
         <div
           {...bind()}
           ref={cardRef}
-          className="relative flex items-center justify-center w-full max-w-2xl min-h-[540px] touch-none"
+          className="relative flex items-center justify-center w-full max-w-2xl min-h-0 touch-none"
         >
           {/* Arrows */}
           <>
