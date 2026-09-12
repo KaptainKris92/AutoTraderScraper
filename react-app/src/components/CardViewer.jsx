@@ -14,6 +14,7 @@ export default function CardViewer({
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showMOTModal, setShowMOTModal] = useState(false);
+  const [motInitialReg, setMotInitialReg] = useState(null);
   const [showFavouritesOnly, setShowFavouritesOnly] = useState(false);
 
   const [refreshKey, setRefreshKey] = useState(Date.now());
@@ -292,16 +293,26 @@ export default function CardViewer({
         </div>
         {!galleryOpen && (
           <button
-            onClick={() => setShowMOTModal(true)}
+            onClick={() => {
+              setMotInitialReg(null);
+              setShowMOTModal(true);
+            }}
             className="fixed bottom-2 right-5 z-50 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg"
-            title="MOT History"
+            title="All MOT History"
           >
             <FaCar className="text-xl" />
           </button>
         )}
 
         {showMOTModal && (
-          <MOTHistoryModal onClose={() => setShowMOTModal(false)} />
+          <MOTHistoryModal
+            onClose={() => {
+              setShowMOTModal(false);
+              setMotInitialReg(null);
+            }}
+            adId={motInitialReg ? currentAd.ad_id : undefined}
+            initialReg={motInitialReg || undefined}
+          />
         )}
 
         {galleryOpen && currentAd && (
@@ -313,7 +324,12 @@ export default function CardViewer({
               setGalleryOpen(false);
             }}
             ready={galleryReady}
-            onRegConfirmed={() => setRefreshKey(Date.now())}
+            onRegConfirmed={(reg) => {
+              setRefreshKey(Date.now());
+              setGalleryOpen(false);
+              setMotInitialReg(reg);
+              setShowMOTModal(true);
+            }}
           />
         )}
       </div>

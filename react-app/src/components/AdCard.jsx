@@ -158,7 +158,7 @@ export default function AdCard({ ad, refreshKey, onOpenGallery }) {
     <>
       {/* Main card container */}
       <div
-        className={`mx-auto bg-white rounded-2xl shadow-md overflow-hidden sm:rounded-xl sm:shadow-lg ${thumbnailMissing ? "w-[640px]" : "w-full max-w-md"
+        className={`relative mx-auto bg-white rounded-2xl shadow-md overflow-hidden sm:rounded-xl sm:shadow-lg ${thumbnailMissing ? "w-[640px]" : "w-full max-w-md"
           }`}
       >
         {/* Thumbnail image  + quick reg input */}
@@ -231,7 +231,14 @@ export default function AdCard({ ad, refreshKey, onOpenGallery }) {
 
             {/* Bound registration */}
             {boundReg && (
-              <div className="text-xs text-gray-500">Reg: {boundReg}</div>
+              <button
+                onClick={() => setShowMOTModal(true)}
+                className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                title="View MOT History"
+              >
+                <FaEye />
+                Reg: {boundReg}
+              </button>
             )}
 
             <span>{ad?.reg_year || "Unknown year"}</span>

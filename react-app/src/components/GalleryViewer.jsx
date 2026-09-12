@@ -204,30 +204,36 @@ export default function GalleryViewer({
     setMotLoading(true);
     setShowConfirm(false);
 
+    const cleanReg = ocrResult.replace(/\s+/g, "").toUpperCase();
+
     try {
       // Fetch MOT history
-      const res = await fetch(`/api/mot_history/query?reg=${ocrResult}`);
+      const res = await fetch(
+        `/api/mot_history/query?reg=${encodeURIComponent(cleanReg)}`
+      );
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
 
-      // Save MOT history
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Save and bind MOT history to this listing
       await fetch("/api/mot_history", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          registration: ocrResult.replace(/\s+/g, "").toUpperCase(),
+          registration: cleanReg,
           data,
           ad_id: adId,
         }),
       });
 
-      // Notify parent to refresh
-      if (onRegConfirmed) onRegConfirmed();
+      // Keep the current gallery image as the listing thumbnail.
+      onImageChange?.(images[currentIndex]);
 
-      alert("✅ MOT history saved and linked.");
-      onImageChange(images[currentIndex]);
-      setShowConfirm(false);
-      onClose();
+      // Tell CardViewer which MOT history to open.
+      onRegConfirmed?.(cleanReg);
+
     } catch (err) {
       console.error("Failed to confirm reg:", err);
       alert("Failed to fetch and bind MOT data.");
@@ -257,10 +263,8 @@ export default function GalleryViewer({
         }),
       });
 
-      if (onRegConfirmed) onRegConfirmed();
-
-      alert("✅ MOT history saved and linked.");
       setRegInput("");
+      onRegConfirmed?.(cleanReg);
     } catch (err) {
       console.error("Quick reg MOT failed:", err);
       alert("❌ Failed to fetch MOT history for that reg.");
@@ -354,7 +358,7 @@ export default function GalleryViewer({
                   maxLength={8}
                 />
                 <button
-                  onClick={handleQuickReg}
+                  type="submit"
                   className="text-sm px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
                 >
                   Search MOT
